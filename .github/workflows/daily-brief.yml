@@ -1,5 +1,5 @@
 # Daily brief, 6:00 a.m. Mountain time.
-# fetch -> rank -> write -> verify, then commit briefs/YYYY-MM-DD.md to the repo.
+# fetch -> rank -> write -> verify, then commit briefs/<profile>/YYYY-MM-DD.md to the repo.
 # Runs on the schedule and from the "Run workflow" button (manual).
 # Pushes to v1-build that edit this file run the pipeline as a test but do NOT commit.
 name: Daily brief
@@ -78,7 +78,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No new brief to commit."
           else
-            git commit -m "Daily brief $(date -u +%F)"
+            git commit -m "Daily brief $(date -u +%F) (${TARGET_PROFILE:-crusoe})"
             git pull --rebase origin "$GITHUB_REF_NAME"
             git push origin "HEAD:$GITHUB_REF_NAME"
           fi

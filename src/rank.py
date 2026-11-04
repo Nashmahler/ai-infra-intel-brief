@@ -1,7 +1,7 @@
 """Step 3: score collected items with Claude.
 
-Reads  data/YYYY-MM-DD_raw.json   (from src.fetch)
-Writes data/YYYY-MM-DD_scores.json  (every item with a 1-5 score and a reason)
+Reads  data/<profile>/YYYY-MM-DD_raw.json   (from src.fetch)
+Writes data/<profile>/YYYY-MM-DD_scores.json  (every item with a 1-5 score and a reason)
 
 The API key is read from the ANTHROPIC_API_KEY environment variable by the
 SDK. It is never written in code or config.
@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 import anthropic
 
-from .config import ROOT, load_profile, market_labels, profile_facts_text
+from .config import data_dir, load_profile, market_labels, profile_facts_text
 
 MODEL = "claude-opus-5-5"   # one place to change the model
 MAX_ITEMS = 100             # cap on items sent per run (keeps cost and output bounded)
@@ -179,7 +179,7 @@ def main() -> int:
         return 1
     day = (sys.argv[1] if len(sys.argv) > 1
            else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-    raw = json.loads((ROOT / "data" / f"{day}_raw.json").read_text(encoding="utf-8"))
+    raw = json.loads((data_dir() / f"{day}_raw.json").read_text(encoding="utf-8"))
 
     items = raw["items"]
     if len(items) > MAX_ITEMS:
@@ -187,7 +187,7 @@ def main() -> int:
         items = sorted(items, key=lambda x: x["published"], reverse=True)[:MAX_ITEMS]
 
     ranked = rank_items(items, anthropic.Anthropic())
-    out = ROOT / "data" / f"{day}_scores.json"
+    out = data_dir() / f"{day}_scores.json"
     out.write_text(json.dumps({"day": day, "items": ranked}, indent=2), encoding="utf-8")
     print(f"scored {len(ranked)} items -> {out}")
     for r in ranked[:5]:

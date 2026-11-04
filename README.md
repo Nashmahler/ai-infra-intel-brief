@@ -11,7 +11,7 @@ takes one config file and no code changes.
 Every morning (6:00 a.m. Mountain) it collects news from free feeds, ranks it
 with Claude, writes a short brief, **checks in code that every link in the
 brief points to an article it actually collected**, and commits the result to
-[`briefs/`](briefs/). If it can't verify anything, it publishes a "no verified
+[`briefs/<profile>/`](briefs/). If it can't verify anything, it publishes a "no verified
 brief today" note instead of an unsupported brief.
 
 **Design principle:** it augments judgment, it doesn't replace it. The brief
@@ -50,14 +50,14 @@ or the outlet's own analysis. When in doubt, it's Reported.
 
 One Python pipeline, four commands, run in order by GitHub Actions:
 
-| Step | Command | What it does | Output (git-ignored `data/`) |
+| Step | Command | What it does | Output (git-ignored `data/<profile>/`) |
 |---|---|---|---|
 | 1. Fetch | `python -m src.fetch` | Reads every feed in `sources.yaml` (plus the profile's own Google News searches), keeps items from the last 48 hours, **deduplicates** (same link, or titles ≥ 85% alike), and **filters** to items that mention a watchlist term (shared `watchlist.yaml` terms plus the profile's). A failed or empty feed is logged and skipped; it never stops the run. | `YYYY-MM-DD_raw.json` |
 | 2. Rank | `python -m src.rank` | Claude scores each item 1–5 (relevance to the target company, novelty, source quality) with a one-line reason, and groups items into **stories**. A story covered by 3+ outlets gets a +1 boost; only its best article is a candidate, so wide coverage raises a story instead of crowding out others. | `YYYY-MM-DD_scores.json` |
 | 3. Write | `python -m src.write` | Claude writes the brief as structured data from the strongest stories. Our code renders the exact format, enforces one story per top/watchlist slot, and fills in the footer from the collected data. | `YYYY-MM-DD_brief.json` + a draft `.md` |
-| 4. Verify | `python -m src.verify` | **A code check, not an AI check.** See below. | `briefs/YYYY-MM-DD.md` |
+| 4. Verify | `python -m src.verify` | **A code check, not an AI check.** See below. | `briefs/<profile>/YYYY-MM-DD.md` |
 
-Then the workflow commits `briefs/YYYY-MM-DD.md`.
+Then the workflow commits `briefs/<profile>/YYYY-MM-DD.md` (for the demo profile: `briefs/crusoe/`).
 
 ### Where the configuration lives (all editable, no code changes)
 
@@ -101,13 +101,15 @@ something an article said.
 4. **Use it on GitHub:** Settings → Secrets and variables → Actions →
    **Variables** → New repository variable named `TARGET_PROFILE` with value
    `acme`. Delete the variable (or leave it empty) to go back to `crusoe`.
-5. **Check the first brief by eye.** Do the top stories make sense for this
+5. **Check the first brief by eye** (`briefs/acme/YYYY-MM-DD.md`). Do the top stories make sense for this
    company? If a story is missing, add a term to its `watchlist_terms`; if
    noise gets through, tighten them.
 
-One profile runs per workflow run. Outputs are named by date (`briefs/YYYY-MM-DD.md`,
-`data/YYYY-MM-DD_*.json`), not by profile, so running two profiles on the same
-day would overwrite each other. See limitations.
+Output is kept per profile: briefs go to `briefs/<profile>/YYYY-MM-DD.md` and
+working files to `data/<profile>/`, so profiles never overwrite each other. The
+scheduled workflow builds the one profile named by `TARGET_PROFILE`; to get
+briefs for several companies each day you would run the pipeline once per
+profile (see limitations).
 
 ## How verification works
 
@@ -119,7 +121,7 @@ ordinary code (`src/verify.py`) that the model cannot influence:
    harmless normalization (trailing slash, `utm_` tags, letter case in the
    host). An item with a missing or unmatched link is **removed**, and the
    removal is **logged** (section, link, reason, a text snippet) to the
-   workflow log and `data/YYYY-MM-DD_verification.json`. A link that is one
+   workflow log and `data/<profile>/YYYY-MM-DD_verification.json`. A link that is one
    character off is removed, not trusted.
 2. **Fail closed.** If collection returned nothing, the draft is missing, or
    **no top development survives** the check, the file written is a short
@@ -190,9 +192,10 @@ saved samples under `tests/samples/`. They cover:
 - **Paywalled sources and stories that never reach free feeds** are invisible.
 - **Rumors that look like news.** The Reported label helps, but the model
   decides it, and a confident-sounding outlet can still be wrong.
-- **One profile per run.** Outputs are named by date, not by profile, so two
-  profiles run on the same day would overwrite each other's files. Run one
-  target per workflow, or give each its own branch or folder.
+- **One profile per workflow run.** Output folders are per profile, but the
+  scheduled workflow only builds the profile named by `TARGET_PROFILE`. Running
+  several companies every day needs a workflow matrix over profiles, which is
+  not built yet.
 - **A profile is only as good as its facts.** They are supplied by a person and
   not checked; stale or wrong facts will skew the ranking and "why it matters".
   The shared markets and feeds are tuned for AI infrastructure; a company
@@ -227,10 +230,10 @@ saved samples under `tests/samples/`. They cover:
 - **SEC filings.** EDGAR feeds for CoreWeave, Nebius, and Oracle were cut from
   v1. The SEC rejects requests without a descriptive User-Agent that includes
   contact info, so adding them means setting a `SEC_USER_AGENT` secret (e.g.
-  `crusoe-intel-brief you@example.com`) and sending it with those requests.
+  `ai-infra-intel-brief you@example.com`) and sending it with those requests.
 - **The eval set** described above, re-run after every prompt change.
-- More profiles, and one output folder per profile so several companies can run
-  side by side.
+- More profiles, and a workflow matrix so several companies run side by side
+  each morning.
 - Primary-source monitoring beyond filings: regulator dockets and interconnection queues.
 - A structured market map of companies, customers, and capacity.
 - Weekly trend summaries.

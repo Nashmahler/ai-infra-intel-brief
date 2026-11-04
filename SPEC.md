@@ -33,12 +33,12 @@ Every morning it:
 ## 3. Watchlist
 
 **Markets** (shared by every profile, in `watchlist.yaml`)
-- **AI compute & cloud:** CoreWeave, Lambda, Nebius, Together AI, Oracle Cloud, AWS, Microsoft Azure, Google Cloud, OpenAI and Stargate, Anthropic, xAI
+- **AI compute & cloud:** CoreWeave, Lambda, Nebius, Together AI, Oracle Cloud, AWS, Microsoft Azure, Google Cloud, OpenAI, Anthropic, xAI
 - **Power & energy:** utility and PPA deals, gas and nuclear for data centers, interconnection queues, FERC and state rules, ERCOT
-- **Data center construction:** hyperscale campus announcements, Abilene, Texas, modular data centers, land and permitting, local moratoriums and ballot measures
+- **Data center construction:** hyperscale campus announcements, modular data centers, land and permitting, local moratoriums and ballot measures
 - **Chips & hardware:** Nvidia, AMD, GPU generations and delays, HBM supply, Broadcom and custom silicon
 
-**The target company (from its profile):** any mention of the company's own names, people, and products is always relevant. For Crusoe: Crusoe, Chase Lochmiller, Crusoe Cloud, or Spark modular data centers.
+**The target company (from its profile):** any mention of the company's own names, people, and products is always relevant. For Crusoe: Crusoe, Chase Lochmiller, Crusoe Cloud, or Spark modular data centers, plus Abilene, Texas and Stargate (company-specific, so they live in the Crusoe profile, not the shared watchlist).
 
 Keep the watchlist in config files so it's easy to change without touching code: `watchlist.yaml` for the shared markets, and the profile for company-specific terms.
 
@@ -77,7 +77,7 @@ A single Python script that runs once a day on GitHub Actions:
 4. **Rank:** send the filtered list to Claude with a scoring prompt (relevance to the target company, novelty, source quality). Each item gets a score from 1 to 5 and a one-line reason.
 5. **Write:** send the top-ranked items to Claude with the brief-writing prompt and the exact format above.
 6. **Verify:** a code check, not an AI check. Every link in the brief must match an article collected in step 1. Any item with a missing or unmatched link is removed, and the removal is logged.
-7. **Deliver:** save the brief as `briefs/YYYY-MM-DD.md` in the repo.
+7. **Deliver:** save the brief as `briefs/<profile>/YYYY-MM-DD.md` in the repo (one folder per profile, so companies never overwrite each other).
 
 **Tools**
 - Python, with `feedparser`, `pyyaml`, and the `anthropic` package
@@ -103,7 +103,7 @@ A single Python script that runs once a day on GitHub Actions:
 4. Write the brief-writing step using the exact format in this spec. Facts may only come from the supplied articles.
 5. Write the source-verification check in code: remove any brief item whose link isn't in the collected set, and log removals. Add tests, including a deliberately fake link.
 6. Add an eval script that runs the ranking step against `evals/labeled_headlines.yaml` and reports agreement. (Nash writes the 20 labels.)
-7. Add a GitHub Actions workflow that runs daily at 6:00 a.m. Mountain time, can also be run manually, and commits the brief to `briefs/YYYY-MM-DD.md`.
+7. Add a GitHub Actions workflow that runs daily at 6:00 a.m. Mountain time, can also be run manually, and commits the brief to `briefs/<profile>/YYYY-MM-DD.md`.
 8. Write a README: what it does, how it works, how verification works, known limitations.
 
 Keep the code simple and well-commented; it will be walked through with a hiring team.
@@ -121,4 +121,4 @@ Keep the code simple and well-commented; it will be walked through with a hiring
 - A structured market map of companies, customers, and capacity
 - Weekly trend summaries
 - Email delivery
-- More company profiles, and one output folder per profile so several companies can run side by side
+- More company profiles, and a workflow matrix so several companies run side by side each morning

@@ -24,7 +24,7 @@ facts:
   - "Reportedly exploring an IPO (unconfirmed; always call it reported)."
 
 # Any mention of these is always relevant (added to the shared watchlist.yaml terms).
-watchlist_terms: [Crusoe, "Chase Lochmiller", "Crusoe Cloud", "Crusoe Spark"]
+watchlist_terms: [Crusoe, "Chase Lochmiller", "Crusoe Cloud", "Crusoe Spark", Abilene, Stargate]
 
 # Google News searches that only make sense for this company (added to the
 # shared industry searches in sources.yaml).

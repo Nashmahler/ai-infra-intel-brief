@@ -5,6 +5,9 @@ Three layers of configuration, all plain YAML (no code changes to edit them):
   watchlist.yaml / sources.yaml   shared industry markets, feeds and searches
   profiles/<name>.yaml            everything specific to the target company
   TARGET_PROFILE (env var)        which profile to use; default "crusoe"
+
+Output is kept per profile (data/<profile>/ and briefs/<profile>/), so several
+companies never overwrite each other's files.
 """
 import os
 import re
@@ -65,6 +68,20 @@ def load_profile(name: str | None = None) -> dict:
     profile.setdefault("watchlist_terms", [])
     profile.setdefault("google_news_terms", [])
     return profile
+
+
+def data_dir() -> Path:
+    """Working files for the selected profile: data/<profile>/ (created if needed)."""
+    path = ROOT / "data" / profile_name()
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def briefs_dir() -> Path:
+    """Published briefs for the selected profile: briefs/<profile>/ (created if needed)."""
+    path = ROOT / "briefs" / profile_name()
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def company_name() -> str:

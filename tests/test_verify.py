@@ -87,3 +87,17 @@ def test_fails_closed_when_raw_data_or_draft_is_missing():
     assert not build_final(DAY, None, brief([REAL]))[2]
     md, _, ok = build_final(DAY, RAW, None)
     assert not ok and "no draft brief was produced" in md
+
+
+def test_main_writes_the_brief_under_the_profile_folder(tmp_path, monkeypatch):
+    """With no data at all, verify fails closed and writes briefs/<profile>/<day>.md."""
+    import src.config as config
+    import src.verify as verify
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    monkeypatch.delenv("TARGET_PROFILE", raising=False)
+    monkeypatch.setattr("sys.argv", ["verify", DAY])
+    assert verify.main() == 0
+    out = tmp_path / "briefs" / "crusoe" / f"{DAY}.md"
+    assert out.exists() and "No verified brief today" in out.read_text()
+    assert (tmp_path / "data" / "crusoe" / f"{DAY}_verification.json").exists()
+    assert not (tmp_path / "briefs" / f"{DAY}.md").exists()

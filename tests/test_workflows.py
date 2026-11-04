@@ -38,6 +38,7 @@ def test_daily_brief_commits_briefs_but_not_on_push_test_runs():
     commit = next(s for s in steps if "Commit" in s.get("name", ""))
     assert "github.event_name != 'push'" in commit["if"]
     assert "git add briefs/" in commit["run"]
+    assert "TARGET_PROFILE" in commit["run"]                  # commit message names the profile
 
 
 def test_check_feeds_runs_on_push_and_manually():

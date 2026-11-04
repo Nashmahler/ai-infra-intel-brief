@@ -117,3 +117,36 @@ def test_no_company_name_is_hardcoded_in_the_code():
         if path.name == "config.py":
             continue
         assert "crusoe" not in path.read_text().lower(), path.name
+
+
+# ---- Abilene / Stargate belong to the Crusoe profile, not the shared watchlist
+
+def test_abilene_and_stargate_terms_live_in_the_crusoe_profile():
+    shared = yaml.safe_load((ROOT / "watchlist.yaml").read_text())
+    shared_terms = {t for m in shared["markets"].values() for t in m["terms"]}
+    assert not {"Abilene", "Stargate"} & shared_terms
+    assert {"Abilene", "Stargate"} <= set(load_profile("crusoe")["watchlist_terms"])
+    assert {"Abilene", "Stargate"} <= set(watchlist_terms())     # default profile still tracks them
+
+
+def test_other_profiles_do_not_inherit_abilene_or_stargate(acme):
+    assert not {"Abilene", "Stargate"} & set(watchlist_terms())
+
+
+# ---- per-profile output folders
+
+def test_output_folders_are_per_profile(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    monkeypatch.delenv("TARGET_PROFILE", raising=False)
+    assert config.briefs_dir() == tmp_path / "briefs" / "crusoe"
+    assert config.data_dir() == tmp_path / "data" / "crusoe"
+    monkeypatch.setenv("TARGET_PROFILE", "acme")
+    assert config.briefs_dir() == tmp_path / "briefs" / "acme"
+    assert config.data_dir() == tmp_path / "data" / "acme"
+    assert (tmp_path / "briefs" / "acme").is_dir()               # created on demand
+    assert (tmp_path / "briefs" / "crusoe").is_dir()             # the other is untouched
+
+
+def test_existing_brief_lives_in_the_crusoe_folder():
+    assert list((ROOT / "briefs").glob("*.md")) == []            # nothing left at the top level
+    assert list((ROOT / "briefs" / "crusoe").glob("*.md"))

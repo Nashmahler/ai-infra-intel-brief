@@ -9,15 +9,15 @@ This is a plain code check, not an AI check:
      survives, we write a short "no verified brief today" file instead of a
      brief with unsupported claims. (Fail closed.)
 
-Reads  data/YYYY-MM-DD_raw.json and data/YYYY-MM-DD_brief.json
-Writes briefs/YYYY-MM-DD.md            (the published file)
-       data/YYYY-MM-DD_verification.json (what was removed, and why)
+Reads  data/<profile>/YYYY-MM-DD_raw.json and ..._brief.json
+Writes briefs/<profile>/YYYY-MM-DD.md            (the published file)
+       data/<profile>/YYYY-MM-DD_verification.json (what was removed, and why)
 """
 import json
 import sys
 from datetime import datetime, timezone
 
-from .config import ROOT, company_name
+from .config import briefs_dir, company_name, data_dir
 from .fetch import normalize_link
 from .write import CONFIDENCE, article_index, render_markdown, title_lines
 
@@ -110,18 +110,16 @@ def read_json(path):
 def main() -> int:
     day = (sys.argv[1] if len(sys.argv) > 1
            else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-    data = ROOT / "data"
+    data = data_dir()
     md, removals, verified = build_final(
         day, read_json(data / f"{day}_raw.json"), read_json(data / f"{day}_brief.json"))
 
     for r in removals:   # the log of what the check removed
         print(f"REMOVED [{r['section']}] {r['reason']}: {r['link'] or '(none)'} | {r['text']}")
-    data.mkdir(exist_ok=True)
     (data / f"{day}_verification.json").write_text(
         json.dumps({"verified": verified, "removals": removals}, indent=2), encoding="utf-8")
 
-    out = ROOT / "briefs" / f"{day}.md"
-    out.parent.mkdir(exist_ok=True)
+    out = briefs_dir() / f"{day}.md"
     out.write_text(md, encoding="utf-8")
     print(f"{'verified brief' if verified else 'NO VERIFIED BRIEF'} -> {out} "
           f"({len(removals)} item(s) removed)")

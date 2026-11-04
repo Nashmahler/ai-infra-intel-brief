@@ -1,8 +1,8 @@
 """Step 4: write the brief from the ranked items.
 
-Reads  data/YYYY-MM-DD_scores.json and data/YYYY-MM-DD_raw.json
-Writes data/YYYY-MM-DD_brief.json      (structured draft, NOT yet verified)
-       data/YYYY-MM-DD_brief_draft.md  (same draft, in the final format)
+Reads  data/<profile>/YYYY-MM-DD_scores.json and ..._raw.json
+Writes data/<profile>/YYYY-MM-DD_brief.json      (structured draft, NOT yet verified)
+       data/<profile>/YYYY-MM-DD_brief_draft.md  (same draft, in the final format)
 
 Design: Claude returns the brief as structured data (not free-form markdown).
 Our code renders the exact format from SPEC.md, so the layout never drifts,
@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 
 import anthropic
 
-from .config import ROOT, load_profile, market_labels, profile_facts_text
+from .config import data_dir, load_profile, market_labels, profile_facts_text
 from .fetch import normalize_link
 from .rank import MODEL, outlet
 
@@ -264,7 +264,7 @@ def main() -> int:
         return 1
     day = (sys.argv[1] if len(sys.argv) > 1
            else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-    data = ROOT / "data"
+    data = data_dir()
     raw = json.loads((data / f"{day}_raw.json").read_text(encoding="utf-8"))
     ranked = json.loads((data / f"{day}_scores.json").read_text(encoding="utf-8"))["items"]
     if not ranked:
@@ -278,7 +278,7 @@ def main() -> int:
     (data / f"{day}_brief_draft.md").write_text(md, encoding="utf-8")
     print(f"draft brief written: {len(brief['top'])} top, "
           f"{len(brief['watchlist'])} watchlist, {len(brief['noise'])} noise "
-          f"-> data/{day}_brief_draft.md (UNVERIFIED until step 5)")
+          f"-> {data / (day + '_brief_draft.md')} (UNVERIFIED until verified)")
     return 0
 
 
