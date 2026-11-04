@@ -1,5 +1,6 @@
-# Daily brief, 6:00 a.m. Mountain time. (Work in progress: stops after the
-# draft step. Verification and committing briefs/ are added in steps 5 and 7.)
+# Daily brief, 6:00 a.m. Mountain time.
+# Work in progress: runs through verification and saves the result as a
+# downloadable artifact. Committing briefs/ is added in step 7.
 name: Daily brief
 
 on:
@@ -55,10 +56,15 @@ jobs:
       - name: Write draft
         if: steps.gate.outputs.go == 'true'
         run: python -m src.write
+      - name: Verify and publish (runs even if an earlier step failed: fails closed)
+        if: steps.gate.outputs.go == 'true' && always()
+        run: python -m src.verify
       - name: Save outputs for inspection
         if: steps.gate.outputs.go == 'true' && always()
         uses: actions/upload-artifact@v4
         with:
           name: brief-data
-          path: data/
+          path: |
+            data/
+            briefs/
           if-no-files-found: warn

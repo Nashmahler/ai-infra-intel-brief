@@ -4,8 +4,10 @@ from pathlib import Path
 
 import feedparser
 
-from src.fetch import (collect, dedupe, entries_to_items, fetch_all,
-                       filter_by_watchlist)
+import base64
+
+from src.fetch import (collect, decode_google_news_url, dedupe, entries_to_items,
+                       fetch_all, filter_by_watchlist)
 
 NOW = datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc)
 SAMPLE = Path(__file__).parent / "samples" / "sample_feed.xml"
@@ -78,3 +80,29 @@ def test_collect_reports_stats_and_failures():
                      ["CoreWeave"], NOW, fetcher)
     assert result["stats"] == {"scanned": 2, "after_dedup": 2, "kept": 1}
     assert result["failed_sources"][0]["name"] == "down"
+
+
+def gnews_link(url: str) -> str:
+    """Build an old-style Google News link that embeds `url` (as Google once did)."""
+    payload = b"\x08\x13\x22" + bytes([len(url)]) + url.encode() + b"\xd2\x01\x00"
+    return "https://news.google.com/rss/articles/" + base64.urlsafe_b64encode(payload).decode().rstrip("=")
+
+
+def test_google_news_link_resolves_to_publisher_url_when_decodable():
+    assert decode_google_news_url(gnews_link("https://pub.com/story")) == "https://pub.com/story"
+
+
+def test_undecodable_google_link_is_left_alone_not_guessed():
+    assert decode_google_news_url("https://news.google.com/rss/articles/CBMiAU_yqLencrypted") is None
+    assert decode_google_news_url("https://example.com/a") is None
+
+
+def test_google_item_keeps_original_link_and_shows_publisher():
+    real, google = "https://pub.com/story", gnews_link("https://pub.com/story")
+    xml = f"""<?xml version="1.0"?><rss version="2.0"><channel><title>g</title>
+    <item><title>CoreWeave wins deal - Reuters</title><link>{google}</link>
+    <pubDate>Tue, 03 Nov 2026 12:00:00 GMT</pubDate>
+    <source url="https://reuters.com">Reuters</source></item></channel></rss>"""
+    [it] = entries_to_items(feedparser.parse(xml), "Google News: CoreWeave", NOW)
+    assert it["link"] == real and it["original_link"] == google
+    assert it["publisher"] == "Reuters" and it["title"] == "CoreWeave wins deal"

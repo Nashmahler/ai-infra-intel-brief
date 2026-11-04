@@ -38,3 +38,8 @@ def all_feeds(include_google: bool = True) -> list[dict]:
                 "url": src["google_news_template"].format(query=quote_plus(term)),
             })
     return feeds
+
+
+def crusoe_profile_text() -> str:
+    """The facts in crusoe_profile.yaml as a bulleted block for prompts."""
+    return "\n".join(f"- {fact}" for fact in load_yaml("crusoe_profile.yaml")["facts"])

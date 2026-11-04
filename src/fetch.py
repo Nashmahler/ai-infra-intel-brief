@@ -6,6 +6,7 @@ Pipeline (each stage is its own small function so it can be tested alone):
 
 An "item" is just a dict: {title, link, source, published, summary}.
 """
+import base64
 import calendar
 import json
 import re
@@ -29,6 +30,40 @@ def clean_text(html: str, limit: int = 500) -> str:
     return re.sub(r"\s+", " ", text).strip()[:limit]
 
 
+def decode_google_news_url(url: str) -> str | None:
+    """Recover the publisher's URL from a Google News article link, if possible.
+
+    Older Google News links embed the real URL in base64; newer ones are
+    encrypted and cannot be decoded offline. We do NOT guess or make extra
+    web requests: when decoding fails we return None and the caller keeps the
+    Google link and shows the publisher name instead.
+    """
+    parsed = urlparse(url)
+    if parsed.netloc != "news.google.com" or "/articles/" not in parsed.path:
+        return None
+    article_id = parsed.path.rstrip("/").rsplit("/", 1)[-1]
+    try:
+        raw = base64.urlsafe_b64decode(article_id + "=" * (-len(article_id) % 4))
+    except ValueError:
+        return None
+    if raw.startswith(b"\x08\x13\x22"):
+        raw = raw[3:]
+    if raw.endswith(b"\xd2\x01\x00"):
+        raw = raw[:-3]
+    if not raw:
+        return None
+    length, start = raw[0], 1
+    if length >= 0x80:                       # two-byte length
+        if len(raw) < 2:
+            return None
+        length, start = (raw[0] & 0x7F) | (raw[1] << 7), 2
+    try:
+        candidate = raw[start:start + length].decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    return candidate if candidate.startswith(("http://", "https://")) else None
+
+
 def entries_to_items(parsed, source: str, now: datetime) -> list[dict]:
     """Turn a parsed feed into items published within the last WINDOW_HOURS.
 
@@ -44,13 +79,26 @@ def entries_to_items(parsed, source: str, now: datetime) -> list[dict]:
         published = datetime.fromtimestamp(calendar.timegm(stamp), tz=timezone.utc)
         if published < cutoff:
             continue
-        items.append({
-            "title": clean_text(e["title"], 300),
-            "link": e["link"],
+        # Google News marks the real publisher in <source>; other feeds ARE the publisher.
+        publisher = (e.get("source") or {}).get("title") or source
+        title = clean_text(e["title"], 300)
+        if title.endswith(f" - {publisher}"):          # Google News appends it
+            title = title[: -len(publisher) - 3]
+        link, original = e["link"], None
+        resolved = decode_google_news_url(link)
+        if resolved:
+            link, original = resolved, e["link"]
+        item = {
+            "title": title,
+            "link": link,
             "source": source,
+            "publisher": publisher,
             "published": published.isoformat(),
             "summary": clean_text(e.get("summary", "")),
-        })
+        }
+        if original:
+            item["original_link"] = original   # still counts as a collected link
+        items.append(item)
     return items
 
 
