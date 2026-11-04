@@ -56,7 +56,7 @@ jobs:
       - name: Write draft
         if: steps.gate.outputs.go == 'true'
         run: python -m src.write
-      - name: Verify and publish (runs even if an earlier step failed: fails closed)
+      - name: Verify and publish (runs even if an earlier step failed, so it fails closed)
         if: steps.gate.outputs.go == 'true' && always()
         run: python -m src.verify
       - name: Save outputs for inspection
