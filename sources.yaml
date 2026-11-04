@@ -29,6 +29,9 @@ google_news_terms:
   - "Abilene data center"
   - "data center moratorium"
   - "Nvidia GPU"
+  - "Oracle data center"
+  - "hyperscaler capex"
+  - "data center power"
 
 # SEC EDGAR filings (Atom). SEC requires a descriptive User-Agent.
 edgar:
