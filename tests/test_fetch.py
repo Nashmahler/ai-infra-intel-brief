@@ -106,3 +106,14 @@ def test_google_item_keeps_original_link_and_shows_publisher():
     [it] = entries_to_items(feedparser.parse(xml), "Google News: CoreWeave", NOW)
     assert it["link"] == real and it["original_link"] == google
     assert it["publisher"] == "Reuters" and it["title"] == "CoreWeave wins deal"
+
+
+def test_fetch_feed_raises_on_empty_feed(monkeypatch):
+    """A feed that parses but has no items must count as a failure."""
+    import pytest
+
+    import src.fetch as fetch
+    monkeypatch.setattr(fetch.feedparser, "parse",
+                        lambda *a, **k: feedparser.parse("<rss version='2.0'><channel/></rss>"))
+    with pytest.raises(RuntimeError):
+        fetch.fetch_feed({"name": "Empty", "url": "https://x"}, NOW)

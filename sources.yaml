@@ -35,5 +35,8 @@ google_news_terms:
   - "Oracle data center"
   - "hyperscaler capex"
   - "data center power"
+  - "Texas data center policy"
+  - "data center ballot measure"
+  - "Crusoe Energy"
 
 # SEC EDGAR filings are not in v1 (they need a contact User-Agent); see README, "What's next".

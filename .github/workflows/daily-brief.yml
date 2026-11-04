@@ -1,6 +1,7 @@
 # Daily brief, 6:00 a.m. Mountain time.
-# Work in progress: runs through verification and saves the result as a
-# downloadable artifact. Committing briefs/ is added in step 7.
+# fetch -> rank -> write -> verify, then commit briefs/YYYY-MM-DD.md to the repo.
+# Runs on the schedule and from the "Run workflow" button (manual).
+# Pushes to v1-build that edit this file run the pipeline as a test but do NOT commit.
 name: Daily brief
 
 on:
@@ -17,7 +18,11 @@ on:
     paths: [".github/workflows/daily-brief.yml"]
 
 permissions:
-  contents: read
+  contents: write   # lets the job commit the brief to the repo
+
+concurrency:
+  group: daily-brief          # never run two at once (e.g. schedule + manual)
+  cancel-in-progress: false
 
 jobs:
   brief:
@@ -59,6 +64,21 @@ jobs:
       - name: Verify and publish (runs even if an earlier step failed, so it fails closed)
         if: steps.gate.outputs.go == 'true' && always()
         run: python -m src.verify
+      - name: Commit brief to briefs/
+        # Scheduled and manual runs only. Commits made with the built-in token
+        # do not trigger other workflows, so there is no loop.
+        if: steps.gate.outputs.go == 'true' && github.event_name != 'push' && always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add briefs/
+          if git diff --cached --quiet; then
+            echo "No new brief to commit."
+          else
+            git commit -m "Daily brief $(date -u +%F)"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
       - name: Save outputs for inspection
         if: steps.gate.outputs.go == 'true' && always()
         uses: actions/upload-artifact@v4
