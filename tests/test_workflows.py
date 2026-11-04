@@ -43,3 +43,9 @@ def test_daily_brief_commits_briefs_but_not_on_push_test_runs():
 def test_check_feeds_runs_on_push_and_manually():
     t = triggers(load("check-feeds.yml"))
     assert "workflow_dispatch" in t and "push" in t
+
+
+def test_workflows_pass_the_target_profile_setting_through():
+    for name in ("daily-brief.yml", "check-feeds.yml"):
+        text = (ROOT / ".github" / "workflows" / name).read_text()
+        assert "TARGET_PROFILE: ${{ vars.TARGET_PROFILE }}" in text, name

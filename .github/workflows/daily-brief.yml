@@ -29,6 +29,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Which company the brief is prepared for. Set a repository VARIABLE named
+      # TARGET_PROFILE to change it; unset means the default profile (crusoe).
+      TARGET_PROFILE: ${{ vars.TARGET_PROFILE }}
     steps:
       - name: Gate (scheduled runs only proceed at 6am Mountain)
         id: gate

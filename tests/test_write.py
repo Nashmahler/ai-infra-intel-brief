@@ -37,7 +37,7 @@ def test_markdown_follows_spec_format():
     articles = {f"https://x.com/{i}": {"title": f"Item {i}", "publisher": "Pub"}
                 for i in (1, 2, 3)}
     md = render_markdown(brief, "2026-11-04", articles, {"scanned": 90, "kept": 12}, ["Feed A"])
-    assert md.startswith("# Crusoe Intelligence Brief — November 4, 2026")
+    assert md.startswith("# AI Infrastructure Intelligence Brief — prepared for Crusoe\n\n*November 4, 2026*")
     for part in ["## Top 3 developments", "- **What happened:** W1",
                  "- **Why it matters to Crusoe:** Y1", "- **Confidence:** Reported",
                  "- **Source:** [Item 1](https://x.com/1) (Pub)", "## Watchlist roundup",
@@ -75,3 +75,30 @@ def test_prompt_includes_profile_and_coverage():
     from src.write import build_prompt, build_system_prompt
     assert "Abilene" in build_system_prompt() and "Brighton" in build_system_prompt()
     assert "coverage: 1 outlet" in build_prompt(RANKED)
+
+
+def test_writer_prompt_schema_and_title_follow_the_selected_profile(tmp_path, monkeypatch):
+    """With another profile selected, no trace of Crusoe remains in what the model sees."""
+    import yaml
+
+    import src.config as config
+    from src.write import build_schema, build_system_prompt
+    (tmp_path / "acme.yaml").write_text(yaml.safe_dump({
+        "company": {"name": "Acme Power", "description": "a developer of test fixtures",
+                    "customers": ["Customer A"], "competitors": ["Rival A"],
+                    "business_areas": ["generation", "retail"]},
+        "facts": ["Acme has one fact."]}))
+    monkeypatch.setattr(config, "PROFILES_DIR", tmp_path)
+    monkeypatch.setenv("TARGET_PROFILE", "acme")
+
+    prompt = build_system_prompt()
+    assert "Acme Power" in prompt and "ACME POWER PROFILE" in prompt
+    assert "generation, retail" in prompt and "Acme has one fact." in prompt
+    assert "Crusoe" not in prompt
+    schema = build_schema()["properties"]
+    assert schema["top"]["items"]["properties"]["area"]["enum"] == ["generation", "retail"]
+    assert "Acme Power" in schema["watchlist"]["items"]["properties"]["market"]["enum"]
+    md = render_markdown({"top": [top(1)], "watchlist": [], "noise": []}, "2026-11-04", {},
+                         {"scanned": 1, "kept": 1}, [])
+    assert md.startswith("# AI Infrastructure Intelligence Brief — prepared for Acme Power")
+    assert "Why it matters to Acme Power:" in md and "Crusoe" not in md

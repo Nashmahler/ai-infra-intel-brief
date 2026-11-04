@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 
 import anthropic
 
-from .config import ROOT, crusoe_profile_text, load_yaml
+from .config import ROOT, load_profile, market_labels, profile_facts_text
 from .fetch import normalize_link
 from .rank import MODEL, outlet
 
@@ -26,20 +26,13 @@ N_DUPES = 5         # duplicate articles it may list as noise
 MAX_TOP, MAX_WATCH, MAX_NOISE = 3, 6, 5   # section sizes from SPEC.md
 
 CONFIDENCE = ["Confirmed", "Reported"]
-AREAS = ["power", "manufacturing", "data centers", "cloud"]
-
-
-def market_labels() -> list[str]:
-    """Market names for the roundup, taken from watchlist.yaml."""
-    wl = load_yaml("watchlist.yaml")
-    return [m["label"] for m in wl["markets"].values()] + [wl["crusoe"]["label"]]
 
 
 SYSTEM_TEMPLATE = """\
-You write a daily intelligence brief for Crusoe, an AI infrastructure company.
-You are given numbered news stories. Write three sections.
+You write a daily AI infrastructure intelligence brief prepared for {company},
+{description}. You are given numbered news stories. Write three sections.
 
-CRUSOE PROFILE (background supplied by the repo owner, NOT from the articles):
+{company_upper} PROFILE (background supplied by the repo owner, NOT from the articles):
 {profile}
 Use the profile only to explain why a story matters. Never present a profile
 fact as something an article said, and never put one in `what_happened`. If you
@@ -53,20 +46,19 @@ TOP DEVELOPMENTS: choose the three most important stories from CANDIDATES.
     use only ONE link per story (the one given).
   - what_happened: one or two sentences, only facts from the story text.
   - why_it_matters: two sentences.
-      1. Name the specific part of Crusoe's business affected (for example the
-         Abilene campus built for Oracle, the Microsoft campus, Spark
-         manufacturing in Brighton, power supply for the Texas campuses, or
-         Crusoe Cloud) and the MECHANISM: how this development reaches it.
+      1. Name the specific part of {company}'s business affected (a campus,
+         factory, customer relationship, supply, or product named in the
+         profile) and the MECHANISM: how this development reaches it.
       2. Say what to watch next: the specific decision, filing, vote, date, or
          metric that would show the effect. It must come from the story text,
          or be framed as a plain open question ("whether X approves Y").
          Never invent a date or event.
     Keep inference distinct from fact: use "could" or "would" for what you infer.
-    Do NOT give generic advice or instructions ("Crusoe may want to review...",
+    Do NOT give generic advice or instructions ("{company} may want to review...",
     "should monitor developments", "this highlights the importance of...").
-    If the link to Crusoe is indirect, say so and say what would change that.
-  - area: the one part of the business from your first sentence of why_it_matters:
-    power, manufacturing, data centers, or cloud.
+    If the link to {company} is indirect, say so and say what would change that.
+  - area: the one part of the business from your first sentence of why_it_matters,
+    one of: {areas}.
   - confidence, judged on the core fact of the story:
       Confirmed = company earnings, press releases or official statements, SEC
         or other filings, or official election or regulatory results (a filed
@@ -81,7 +73,7 @@ WATCHLIST: three to six other CANDIDATES, one line each, grouped by market.
   Do not repeat a story already used in TOP DEVELOPMENTS.
 NOISE: three to five items from NOISE_CANDIDATES (or unused CANDIDATES) you
   chose to ignore, each with a one-line reason such as "opinion piece, no new
-  facts", "duplicate of top story 2", or "not relevant to Crusoe's markets".
+  facts", "duplicate of top story 2", or "not relevant to {company}'s markets".
   A DUPLICATE item may be listed with "duplicate of <its story>" as the reason.
 
 Hard rules:
@@ -96,7 +88,11 @@ Hard rules:
 
 
 def build_system_prompt() -> str:
-    return SYSTEM_TEMPLATE.format(profile=crusoe_profile_text())
+    """Fill the template from the target profile (TARGET_PROFILE)."""
+    c = load_profile()["company"]
+    return SYSTEM_TEMPLATE.format(
+        company=c["name"], company_upper=c["name"].upper(), description=c["description"],
+        areas=", ".join(c["business_areas"]), profile=profile_facts_text())
 
 
 def build_schema() -> dict:
@@ -107,10 +103,10 @@ def build_schema() -> dict:
     s, e = {"type": "string"}, lambda vals: {"type": "string", "enum": vals}
     return obj(
         top=dict(type="array", items=obj(
-            what_happened=s, why_it_matters=s, area=e(AREAS),
+            what_happened=s, why_it_matters=s, area=e(load_profile()["company"]["business_areas"]),
             confidence=e(CONFIDENCE), link=s)),
         watchlist=dict(type="array", items=obj(
-            market=e(market_labels()), line=s, link=s)),
+            market=e(market_labels() + [load_profile()["company"]["name"]]), line=s, link=s)),
         noise=dict(type="array", items=obj(reason=s, link=s)),
     )
 
@@ -205,14 +201,22 @@ def pretty_date(day: str) -> str:
     return f"{d:%B} {d.day}, {d:%Y}"
 
 
+def title_lines(company: str, day: str) -> list[str]:
+    """The brief's title block, shared with the "no verified brief" file."""
+    return [f"# AI Infrastructure Intelligence Brief — prepared for {company}", "",
+            f"*{pretty_date(day)}*", ""]
+
+
 def render_markdown(brief: dict, day: str, articles: dict[str, dict], stats: dict,
-                    failed: list[str]) -> str:
+                    failed: list[str], company: str | None = None) -> str:
     """Render the exact format from SPEC.md section 2.
 
     `articles` maps normalize_link(url) -> {"title", "publisher"} from the
     collected data, so link text and publisher names always come from our
-    data, never from the model.
+    data, never from the model. `company` defaults to the target profile's name.
     """
+    company = company or load_profile()["company"]["name"]
+
     def info(url):
         return articles.get(normalize_link(url))
 
@@ -224,12 +228,11 @@ def render_markdown(brief: dict, day: str, articles: dict[str, dict], stats: dic
         a = info(url)
         return f"[{a['publisher']}]({url})" if a else url
 
-    out = [f"# Crusoe Intelligence Brief — {pretty_date(day)}", "",
-           "## Top 3 developments", ""]
+    out = title_lines(company, day) + ["## Top 3 developments", ""]
     for n, it in enumerate(brief["top"], 1):
         out += [f"**{n}.**",
                 f"- **What happened:** {it['what_happened']}",
-                f"- **Why it matters to Crusoe:** {it['why_it_matters']}",
+                f"- **Why it matters to {company}:** {it['why_it_matters']}",
                 f"- **Confidence:** {it['confidence']}",
                 f"- **Source:** {link(it['link'])}", ""]
     out += ["## Watchlist roundup", ""]

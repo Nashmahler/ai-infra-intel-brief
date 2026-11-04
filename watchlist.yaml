@@ -1,4 +1,5 @@
-# Watchlist: terms that make a news item relevant to Crusoe.
+# Shared watchlist: the industry markets every profile tracks.
+# Terms specific to the target company live in its profile (profiles/<name>.yaml).
 # Edit this file to change what the brief tracks; no code changes needed.
 # Matching is case-insensitive and on whole words/phrases.
 
@@ -19,8 +20,3 @@ markets:
   chips_hardware:
     label: "Chips & hardware"
     terms: [Nvidia, AMD, GPU, Blackwell, Rubin, HBM, Broadcom, "custom silicon"]
-
-# Any mention of these is always relevant.
-crusoe:
-  label: "Crusoe"
-  terms: [Crusoe, "Chase Lochmiller", "Crusoe Cloud", "Crusoe Spark"]

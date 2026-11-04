@@ -83,3 +83,5 @@ def test_same_outlet_repeats_and_noise_get_no_boost():
 def test_ranker_prompt_has_profile_and_story_grouping():
     p = build_system_prompt()
     assert "1.2 GW Abilene" in p and "same underlying event" in p
+    assert "scoring news items for Crusoe" in p and "Oracle, Microsoft" in p
+    assert "AI compute & cloud" in p            # markets come from watchlist.yaml

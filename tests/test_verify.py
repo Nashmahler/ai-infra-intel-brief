@@ -64,7 +64,7 @@ def test_unknown_confidence_label_falls_back_to_reported():
 def test_good_brief_is_published_with_footer():
     md, removals, ok = build_final(DAY, RAW, brief([REAL]))
     assert ok and removals == []
-    assert md.startswith("# Crusoe Intelligence Brief")
+    assert md.startswith("# AI Infrastructure Intelligence Brief — prepared for Crusoe")
     assert "Articles scanned: 10 · kept: 2 · sources that failed to load: Feed A" in md
 
 
@@ -73,6 +73,7 @@ def test_fails_closed_when_the_check_removes_every_top_item():
                                                    watch_links=[REAL]))
     assert not ok and "No verified brief today" in md and len(removals) == 1
     assert "What happened" not in md
+    assert "prepared for Crusoe" in md and "*November 4, 2026*" in md
 
 
 def test_fails_closed_when_feeds_returned_nothing():
