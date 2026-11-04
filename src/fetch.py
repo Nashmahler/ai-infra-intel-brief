@@ -15,7 +15,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import feedparser
 
-from .config import ROOT, agent_for, all_feeds
+from .config import ROOT, USER_AGENT, all_feeds
 
 WINDOW_HOURS = 48          # how far back to look
 TITLE_SIMILARITY = 0.85    # titles this alike (0-1) are treated as the same story
@@ -56,7 +56,7 @@ def entries_to_items(parsed, source: str, now: datetime) -> list[dict]:
 
 def fetch_feed(feed: dict, now: datetime) -> list[dict]:
     """Download one feed. Raises RuntimeError if it is down or empty."""
-    parsed = feedparser.parse(feed["url"], agent=agent_for(feed))
+    parsed = feedparser.parse(feed["url"], agent=USER_AGENT)
     if not parsed.entries:
         reason = parsed.get("bozo_exception") or "feed returned no items"
         raise RuntimeError(str(reason))

@@ -2,7 +2,6 @@
 import json
 from types import SimpleNamespace
 
-from src.config import agent_for
 from src.write import render_markdown, write_brief
 
 RANKED = [{"title": f"Item {i}", "link": f"https://x.com/{i}", "source": "S",
@@ -49,14 +48,3 @@ def test_footer_says_none_when_no_sources_failed():
     md = render_markdown({"top": [], "watchlist": [], "noise": []}, "2026-11-04", {},
                          {"scanned": 1, "kept": 0}, [])
     assert "failed to load: none" in md
-
-
-def test_sec_feeds_need_a_user_agent(monkeypatch):
-    import pytest
-    from src.config import MissingConfig
-    feed = {"name": "SEC", "url": "u", "agent_env": "SEC_USER_AGENT"}
-    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
-    with pytest.raises(MissingConfig):
-        agent_for(feed)
-    monkeypatch.setenv("SEC_USER_AGENT", "crusoe-intel-brief me@example.com")
-    assert agent_for(feed) == "crusoe-intel-brief me@example.com"

@@ -10,16 +10,12 @@ import sys
 
 import feedparser
 
-from .config import MissingConfig, agent_for, all_feeds
+from .config import USER_AGENT, all_feeds
 
 
 def check(feed: dict) -> tuple[bool | None, str]:
     """Return (ok, detail). ok is True, False, or None (could not be tested)."""
-    try:
-        agent = agent_for(feed)
-    except MissingConfig as err:
-        return None, f"SKIPPED: {err}"
-    parsed = feedparser.parse(feed["url"], agent=agent)
+    parsed = feedparser.parse(feed["url"], agent=USER_AGENT)
     status = parsed.get("status", "no response")
     if not parsed.entries:
         err = str(parsed.get("bozo_exception", ""))

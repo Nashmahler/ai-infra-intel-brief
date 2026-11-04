@@ -23,7 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
     steps:
       - name: Gate (scheduled runs only proceed at 6am Mountain)
         id: gate

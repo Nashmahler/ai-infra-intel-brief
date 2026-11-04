@@ -36,14 +36,4 @@ google_news_terms:
   - "hyperscaler capex"
   - "data center power"
 
-# SEC EDGAR filings (Atom). The SEC blocks anonymous clients: set the
-# SEC_USER_AGENT environment variable / repository secret to something like
-#   crusoe-intel-brief your-email@example.com
-# These feeds are skipped (and reported) while it is unset.
-edgar:
-  - name: SEC EDGAR CoreWeave
-    url: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001769628&type=&dateb=&owner=include&count=20&output=atom
-  - name: SEC EDGAR Nebius
-    url: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001513845&type=&dateb=&owner=include&count=20&output=atom
-  - name: SEC EDGAR Oracle
-    url: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001341439&type=&dateb=&owner=include&count=20&output=atom
+# SEC EDGAR filings are not in v1 (they need a contact User-Agent); see README, "What's next".
