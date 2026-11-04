@@ -1,0 +1,26 @@
+# Watchlist: terms that make a news item relevant to Crusoe.
+# Edit this file to change what the brief tracks; no code changes needed.
+# Matching is case-insensitive and on whole words/phrases.
+
+markets:
+  ai_compute_cloud:
+    label: "AI compute & cloud"
+    terms: [CoreWeave, Lambda, Nebius, "Together AI", "Oracle Cloud", AWS,
+            "Microsoft Azure", "Google Cloud", OpenAI, Stargate, Anthropic, xAI]
+  power_energy:
+    label: "Power & energy"
+    terms: ["power purchase agreement", PPA, "data center power", "nuclear",
+            "natural gas", "interconnection queue", FERC, ERCOT, "utility"]
+  data_center_construction:
+    label: "Data center construction"
+    terms: ["hyperscale campus", Abilene, "modular data center",
+            "data center moratorium", "data center permitting",
+            "data center land", "data center ballot"]
+  chips_hardware:
+    label: "Chips & hardware"
+    terms: [Nvidia, AMD, GPU, Blackwell, Rubin, HBM, Broadcom, "custom silicon"]
+
+# Any mention of these is always relevant.
+crusoe:
+  label: "Crusoe"
+  terms: [Crusoe, "Chase Lochmiller", "Crusoe Cloud", "Spark"]
