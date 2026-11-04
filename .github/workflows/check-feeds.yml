@@ -17,3 +17,6 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - run: python -m src.check_feeds
+        env:
+          # Repo secret, e.g. "crusoe-intel-brief your-email@example.com" (SEC needs contact info)
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}

@@ -7,12 +7,15 @@ feeds:
     url: https://www.datacenterdynamics.com/en/rss/
   - name: Utility Dive
     url: https://www.utilitydive.com/feeds/news/
-  - name: Data Center Frontier
-    url: https://www.datacenterfrontier.com/feed/
   - name: TechCrunch AI
     url: https://techcrunch.com/category/artificial-intelligence/feed/
-  - name: The Register Data Centre
-    url: https://www.theregister.com/data_centre/headlines.atom
+
+# Removed because no working URL could be confirmed (add back once one is):
+#  - Data Center Frontier: https://www.datacenterfrontier.com/feed/ returned
+#    a 301 then an XML error; the current RSS address is unknown.
+#  - The Register data centre: .../data_centre/headlines.atom returned 404.
+#    Unverified candidates: https://www.theregister.com/headlines.atom (site-wide)
+#    and https://www.theregister.com/on_prem/headlines.atom
 
 # One Google News RSS search per watchlist term is generated from watchlist.yaml
 # at fetch time using this template ({query} is URL-encoded).
@@ -33,7 +36,10 @@ google_news_terms:
   - "hyperscaler capex"
   - "data center power"
 
-# SEC EDGAR filings (Atom). SEC requires a descriptive User-Agent.
+# SEC EDGAR filings (Atom). The SEC blocks anonymous clients: set the
+# SEC_USER_AGENT environment variable / repository secret to something like
+#   crusoe-intel-brief your-email@example.com
+# These feeds are skipped (and reported) while it is unset.
 edgar:
   - name: SEC EDGAR CoreWeave
     url: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001769628&type=&dateb=&owner=include&count=20&output=atom

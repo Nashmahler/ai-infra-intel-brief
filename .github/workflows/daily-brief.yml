@@ -1,0 +1,65 @@
+# Daily brief, 6:00 a.m. Mountain time. (Work in progress: stops after the
+# draft step. Verification and committing briefs/ are added in steps 5 and 7.)
+name: Daily brief
+
+on:
+  schedule:
+    # GitHub cron is UTC and ignores daylight saving. 6am Mountain is 13:00 UTC
+    # in winter (MST) and 12:00 UTC in summer (MDT), so fire at both times and
+    # let the "gate" step below let through only the one that is 6am in Denver.
+    - cron: "0 12 * * *"
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+  push:
+    # Early testing: run when this file changes (cents per run, not per push).
+    branches: [v1-build]
+    paths: [".github/workflows/daily-brief.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+    steps:
+      - name: Gate (scheduled runs only proceed at 6am Mountain)
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(TZ=America/Denver date +%H)" != "06" ]; then
+            echo "Not 6am in Denver; skipping this trigger."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.go == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.go == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        if: steps.gate.outputs.go == 'true'
+        run: pip install -r requirements.txt
+      - name: Test
+        if: steps.gate.outputs.go == 'true'
+        run: python -m pytest -q
+      - name: Fetch
+        if: steps.gate.outputs.go == 'true'
+        run: python -m src.fetch
+      - name: Rank
+        if: steps.gate.outputs.go == 'true'
+        run: python -m src.rank
+      - name: Write draft
+        if: steps.gate.outputs.go == 'true'
+        run: python -m src.write
+      - name: Save outputs for inspection
+        if: steps.gate.outputs.go == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brief-data
+          path: data/
+          if-no-files-found: warn
