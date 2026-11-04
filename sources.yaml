@@ -17,19 +17,17 @@ feeds:
 #    Unverified candidates: https://www.theregister.com/headlines.atom (site-wide)
 #    and https://www.theregister.com/on_prem/headlines.atom
 
-# One Google News RSS search per watchlist term is generated from watchlist.yaml
-# at fetch time using this template ({query} is URL-encoded).
+# Every Google News search (shared + the profile's) is fetched through this
+# template ({query} is URL-encoded).
 google_news_template: https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en
 
-# Terms that get their own Google News search (company/product names only;
-# generic words like 'utility' would drown the brief in noise).
+# Shared industry searches (company/product names only; generic words like
+# 'utility' would drown the brief in noise). Searches specific to the target
+# company live in its profile (profiles/<name>.yaml, `google_news_terms`).
 google_news_terms:
   - CoreWeave
   - Nebius
-  - Crusoe
-  - Stargate
   - ERCOT
-  - "Abilene data center"
   - "data center moratorium"
   - "Nvidia GPU"
   - "Oracle data center"
@@ -37,6 +35,5 @@ google_news_terms:
   - "data center power"
   - "Texas data center policy"
   - "data center ballot measure"
-  - "Crusoe Energy"
 
 # SEC EDGAR filings are not in v1 (they need a contact User-Agent); see README, "What's next".

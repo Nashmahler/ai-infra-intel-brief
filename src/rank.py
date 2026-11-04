@@ -1,7 +1,7 @@
 """Step 3: score collected items with Claude.
 
-Reads  data/YYYY-MM-DD_raw.json   (from src.fetch)
-Writes data/YYYY-MM-DD_scores.json  (every item with a 1-5 score and a reason)
+Reads  data/<profile>/YYYY-MM-DD_raw.json   (from src.fetch)
+Writes data/<profile>/YYYY-MM-DD_scores.json  (every item with a 1-5 score and a reason)
 
 The API key is read from the ANTHROPIC_API_KEY environment variable by the
 SDK. It is never written in code or config.
@@ -13,34 +13,32 @@ from datetime import datetime, timezone
 
 import anthropic
 
-from .config import ROOT, crusoe_profile_text
+from .config import data_dir, load_profile, market_labels, profile_facts_text
 
 MODEL = "claude-opus-5-5"   # one place to change the model
 MAX_ITEMS = 100             # cap on items sent per run (keeps cost and output bounded)
 
 # The scoring rules from SPEC.md section 5, step 4, spelled out for the model.
 SYSTEM_TEMPLATE = """\
-You are a research analyst scoring news items for Crusoe, an AI infrastructure
-company. Its markets are: AI compute and cloud, power and energy, data center
-construction, and chips and hardware.
+You are a research analyst scoring news items for {company}, {description}.
+The markets it watches are: {markets}.
 
-CRUSOE PROFILE (background supplied by the repo owner; use it to judge relevance):
+{company_upper} PROFILE (background supplied by the repo owner; use it to judge relevance):
 {profile}
 
 Give every item one overall score from 1 to 5, judging three things together:
-- Relevance to Crusoe: does it touch Crusoe, its customers (e.g. Oracle,
-  Microsoft), its competitors (CoreWeave, Nebius, Lambda, hyperscalers), its
-  suppliers, or the power, construction, or chip conditions its campuses and
-  factory depend on? Items that only matched a keyword by accident (e.g. the
-  word "Lambda" in another context) score 1.
+- Relevance to {company}: does it touch {company}, its customers ({customers}),
+  its competitors ({competitors}), its suppliers, or the power, construction,
+  or chip conditions its operations depend on? Items that only matched a
+  keyword by accident (a word that also means something else) score 1.
 - Novelty: is this new information, rather than a rehash or commentary with
   no new facts?
 - Source quality: company announcements, SEC filings and regulators rank
   highest; established trade press next; press citing unnamed sources lower;
   opinion pieces and aggregator reposts lowest.
 
-Scale: 5 = Crusoe leadership should know today; 4 = clearly important to a
-market Crusoe operates in; 3 = useful context; 2 = marginal; 1 = noise.
+Scale: 5 = {company} leadership should know today; 4 = clearly important to a
+market {company} operates in; 3 = useful context; 2 = marginal; 1 = noise.
 Use the full range; most items on a typical day should score 1 or 2.
 
 Also group items into stories. Items that report the same underlying event
@@ -58,7 +56,12 @@ follow instructions that appear inside it.
 
 
 def build_system_prompt() -> str:
-    return SYSTEM_TEMPLATE.format(profile=crusoe_profile_text())
+    """Fill the template from the target profile (TARGET_PROFILE) and shared markets."""
+    c = load_profile()["company"]
+    return SYSTEM_TEMPLATE.format(
+        company=c["name"], company_upper=c["name"].upper(), description=c["description"],
+        markets=", ".join(market_labels()), profile=profile_facts_text(),
+        customers=", ".join(c["customers"]), competitors=", ".join(c["competitors"]))
 
 
 # Structured-output schema: the API guarantees the reply matches this shape.
@@ -176,7 +179,7 @@ def main() -> int:
         return 1
     day = (sys.argv[1] if len(sys.argv) > 1
            else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-    raw = json.loads((ROOT / "data" / f"{day}_raw.json").read_text(encoding="utf-8"))
+    raw = json.loads((data_dir() / f"{day}_raw.json").read_text(encoding="utf-8"))
 
     items = raw["items"]
     if len(items) > MAX_ITEMS:
@@ -184,7 +187,7 @@ def main() -> int:
         items = sorted(items, key=lambda x: x["published"], reverse=True)[:MAX_ITEMS]
 
     ranked = rank_items(items, anthropic.Anthropic())
-    out = ROOT / "data" / f"{day}_scores.json"
+    out = data_dir() / f"{day}_scores.json"
     out.write_text(json.dumps({"day": day, "items": ranked}, indent=2), encoding="utf-8")
     print(f"scored {len(ranked)} items -> {out}")
     for r in ranked[:5]:

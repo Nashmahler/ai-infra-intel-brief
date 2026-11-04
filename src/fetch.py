@@ -2,7 +2,7 @@
 
 Pipeline (each stage is its own small function so it can be tested alone):
 
-    fetch_all()  ->  dedupe()  ->  filter_by_watchlist()  ->  data/YYYY-MM-DD_raw.json
+    fetch_all()  ->  dedupe()  ->  filter_by_watchlist()  ->  data/<profile>/YYYY-MM-DD_raw.json
 
 An "item" is just a dict: {title, link, source, published, summary}.
 """
@@ -16,7 +16,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import feedparser
 
-from .config import ROOT, USER_AGENT, all_feeds
+from .config import USER_AGENT, all_feeds, data_dir
 
 WINDOW_HOURS = 48          # how far back to look
 TITLE_SIMILARITY = 0.85    # titles this alike (0-1) are treated as the same story
@@ -206,8 +206,7 @@ def main() -> None:
     from .config import watchlist_terms
     now = datetime.now(timezone.utc)
     result = collect(all_feeds(), watchlist_terms(), now)
-    out = ROOT / "data" / f"{now:%Y-%m-%d}_raw.json"
-    out.parent.mkdir(exist_ok=True)
+    out = data_dir() / f"{now:%Y-%m-%d}_raw.json"
     out.write_text(json.dumps(result, indent=2), encoding="utf-8")
     s = result["stats"]
     print(f"scanned {s['scanned']}, unique {s['after_dedup']}, kept {s['kept']}, "

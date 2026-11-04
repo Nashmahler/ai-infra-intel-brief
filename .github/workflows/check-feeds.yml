@@ -17,3 +17,5 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - run: python -m src.check_feeds
+        env:
+          TARGET_PROFILE: ${{ vars.TARGET_PROFILE }}   # feeds include the profile's own searches

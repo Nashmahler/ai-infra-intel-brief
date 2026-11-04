@@ -9,17 +9,17 @@ This is a plain code check, not an AI check:
      survives, we write a short "no verified brief today" file instead of a
      brief with unsupported claims. (Fail closed.)
 
-Reads  data/YYYY-MM-DD_raw.json and data/YYYY-MM-DD_brief.json
-Writes briefs/YYYY-MM-DD.md            (the published file)
-       data/YYYY-MM-DD_verification.json (what was removed, and why)
+Reads  data/<profile>/YYYY-MM-DD_raw.json and ..._brief.json
+Writes briefs/<profile>/YYYY-MM-DD.md            (the published file)
+       data/<profile>/YYYY-MM-DD_verification.json (what was removed, and why)
 """
 import json
 import sys
 from datetime import datetime, timezone
 
-from .config import ROOT
+from .config import briefs_dir, company_name, data_dir
 from .fetch import normalize_link
-from .write import CONFIDENCE, article_index, pretty_date, render_markdown
+from .write import CONFIDENCE, article_index, render_markdown, title_lines
 
 SECTIONS = ("top", "watchlist", "noise")
 
@@ -66,11 +66,10 @@ def verify_brief(brief: dict, allowed: dict[str, str]) -> tuple[dict, list[dict]
     return clean, removals
 
 
-def no_brief(day: str, reason: str, stats: dict, failed: list[str]) -> str:
+def no_brief(day: str, reason: str, stats: dict, failed: list[str], company: str) -> str:
     """The fail-closed file: says plainly that there is no brief, and why."""
     failed_txt = ", ".join(failed) if failed else "none"
-    return "\n".join([
-        f"# Crusoe Intelligence Brief — {pretty_date(day)}", "",
+    return "\n".join(title_lines(company, day) + [
         "**No verified brief today.**", "",
         f"Reason: {reason}.", "",
         "Nothing is published when it cannot be checked against collected sources.", "",
@@ -79,24 +78,25 @@ def no_brief(day: str, reason: str, stats: dict, failed: list[str]) -> str:
         f"sources that failed to load: {failed_txt}*", ""])
 
 
-def build_final(day: str, raw: dict | None, brief: dict | None):
+def build_final(day: str, raw: dict | None, brief: dict | None, company: str | None = None):
     """Decide what gets published. Returns (markdown, removals, verified)."""
+    company = company or company_name()
     raw = raw or {}
     stats = raw.get("stats", {"scanned": 0, "kept": 0})
     failed = [f["name"] for f in raw.get("failed_sources", [])]
     items = raw.get("items", [])
 
     if not items:
-        return no_brief(day, "collection returned no usable articles", stats, failed), [], False
+        return no_brief(day, "collection returned no usable articles", stats, failed, company), [], False
     if brief is None:
-        return no_brief(day, "no draft brief was produced", stats, failed), [], False
+        return no_brief(day, "no draft brief was produced", stats, failed, company), [], False
 
     clean, removals = verify_brief(brief, collected_links(items))
     if not clean["top"]:
         why = ("every top development was removed by the source check" if brief.get("top")
                else "the draft contained no top developments")
-        return no_brief(day, why, stats, failed), removals, False
-    return render_markdown(clean, day, article_index(items), stats, failed), removals, True
+        return no_brief(day, why, stats, failed, company), removals, False
+    return render_markdown(clean, day, article_index(items), stats, failed, company), removals, True
 
 
 def read_json(path):
@@ -110,18 +110,16 @@ def read_json(path):
 def main() -> int:
     day = (sys.argv[1] if len(sys.argv) > 1
            else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-    data = ROOT / "data"
+    data = data_dir()
     md, removals, verified = build_final(
         day, read_json(data / f"{day}_raw.json"), read_json(data / f"{day}_brief.json"))
 
     for r in removals:   # the log of what the check removed
         print(f"REMOVED [{r['section']}] {r['reason']}: {r['link'] or '(none)'} | {r['text']}")
-    data.mkdir(exist_ok=True)
     (data / f"{day}_verification.json").write_text(
         json.dumps({"verified": verified, "removals": removals}, indent=2), encoding="utf-8")
 
-    out = ROOT / "briefs" / f"{day}.md"
-    out.parent.mkdir(exist_ok=True)
+    out = briefs_dir() / f"{day}.md"
     out.write_text(md, encoding="utf-8")
     print(f"{'verified brief' if verified else 'NO VERIFIED BRIEF'} -> {out} "
           f"({len(removals)} item(s) removed)")

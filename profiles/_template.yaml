@@ -1,0 +1,21 @@
+# TEMPLATE for a new target company. Copy to profiles/<name>.yaml, where <name>
+# is lowercase letters, digits, "-" or "_" (e.g. profiles/acme.yaml), fill it in,
+# then run with TARGET_PROFILE=<name>. Files starting with "_" cannot be selected.
+
+company:
+  name: Acme Power                     # shown in the brief title and prompts
+  description: a utility-scale developer of ...   # "<name>, <description>" in prompts
+  customers: [Customer A, Customer B]  # who buys from them
+  competitors: [Rival A, Rival B]
+  business_areas: [generation, transmission, retail]   # the parts of the business a story can affect
+
+facts:                                 # background the writer may use for "why it matters"
+  - "One verified fact per line: capacity, sites, contracts, products, plans."
+  - "Mark anything unconfirmed as reported."
+
+# Any mention of these is always relevant.
+watchlist_terms: [Acme Power, "Jane Doe"]
+
+# Searches only this company needs (shared industry searches live in sources.yaml).
+google_news_terms:
+  - "Acme Power"

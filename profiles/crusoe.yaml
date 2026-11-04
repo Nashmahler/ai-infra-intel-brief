@@ -1,0 +1,35 @@
+# Profile: the target company this brief is prepared for.
+# Select it with the TARGET_PROFILE environment variable (default: crusoe).
+# To add a company, copy profiles/_template.yaml (see README, "Adding a new company").
+#
+# The facts below were supplied by the repo owner. They are NOT from collected
+# articles, so the writer may use them only as context for "why it matters",
+# never as the facts of "what happened". Keep them current: edit freely.
+
+company:
+  name: Crusoe
+  description: an AI infrastructure company that builds power, modular data centers, and a GPU cloud
+  customers: [Oracle, Microsoft]
+  competitors: [CoreWeave, Nebius, Lambda, the hyperscalers]
+  # Parts of the business a development can affect (the writer picks one per top story).
+  business_areas: [power, manufacturing, data centers, cloud]
+
+facts:
+  - "Vertically integrated AI infrastructure: power -> modular manufacturing -> data centers -> Crusoe Cloud."
+  - "1.2 GW Abilene, TX campus, built for Oracle."
+  - "900 MW Abilene, TX campus for Microsoft."
+  - "Two other Texas campuses and one in Missouri."
+  - "Spark modular data center factory in Brighton, CO."
+  - "About 4.9 GW contracted; pipeline of more than 40 GW."
+  - "Reportedly exploring an IPO (unconfirmed; always call it reported)."
+
+# Any mention of these is always relevant (added to the shared watchlist.yaml terms).
+watchlist_terms: [Crusoe, "Chase Lochmiller", "Crusoe Cloud", "Crusoe Spark", Abilene, Stargate]
+
+# Google News searches that only make sense for this company (added to the
+# shared industry searches in sources.yaml).
+google_news_terms:
+  - Crusoe
+  - "Crusoe Energy"
+  - "Abilene data center"
+  - Stargate
