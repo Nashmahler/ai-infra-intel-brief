@@ -1,0 +1,42 @@
+# Sources: free feeds only, no logins.
+# Run `python -m src.check_feeds` to confirm each URL returns items.
+# Feeds that fail the check are removed from this file.
+
+feeds:
+  - name: Data Center Dynamics
+    url: https://www.datacenterdynamics.com/en/rss/
+  - name: Utility Dive
+    url: https://www.utilitydive.com/feeds/news/
+  - name: TechCrunch AI
+    url: https://techcrunch.com/category/artificial-intelligence/feed/
+
+# Removed because no working URL could be confirmed (add back once one is):
+#  - Data Center Frontier: https://www.datacenterfrontier.com/feed/ returned
+#    a 301 then an XML error; the current RSS address is unknown.
+#  - The Register data centre: .../data_centre/headlines.atom returned 404.
+#    Unverified candidates: https://www.theregister.com/headlines.atom (site-wide)
+#    and https://www.theregister.com/on_prem/headlines.atom
+
+# One Google News RSS search per watchlist term is generated from watchlist.yaml
+# at fetch time using this template ({query} is URL-encoded).
+google_news_template: https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en
+
+# Terms that get their own Google News search (company/product names only;
+# generic words like 'utility' would drown the brief in noise).
+google_news_terms:
+  - CoreWeave
+  - Nebius
+  - Crusoe
+  - Stargate
+  - ERCOT
+  - "Abilene data center"
+  - "data center moratorium"
+  - "Nvidia GPU"
+  - "Oracle data center"
+  - "hyperscaler capex"
+  - "data center power"
+  - "Texas data center policy"
+  - "data center ballot measure"
+  - "Crusoe Energy"
+
+# SEC EDGAR filings are not in v1 (they need a contact User-Agent); see README, "What's next".

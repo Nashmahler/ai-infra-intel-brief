@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<rss version="2.0"><channel><title>Sample</title>
+<item><title>CoreWeave signs 1GW power deal in Texas</title>
+ <link>https://example.com/a?utm_source=rss</link>
+ <pubDate>Tue, 03 Nov 2026 12:00:00 GMT</pubDate>
+ <description>&lt;p&gt;CoreWeave announced a power purchase agreement.&lt;/p&gt;</description></item>
+<item><title>Local bakery wins award</title>
+ <link>https://example.com/b</link>
+ <pubDate>Tue, 03 Nov 2026 13:00:00 GMT</pubDate>
+ <description>Croissants.</description></item>
+<item><title>Ancient Nvidia news</title>
+ <link>https://example.com/c</link>
+ <pubDate>Mon, 01 Jan 2024 12:00:00 GMT</pubDate></item>
+<item><title>No date on this CoreWeave item</title>
+ <link>https://example.com/d</link></item>
+</channel></rss>

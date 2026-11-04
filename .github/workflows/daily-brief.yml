@@ -1,0 +1,90 @@
+# Daily brief, 6:00 a.m. Mountain time.
+# fetch -> rank -> write -> verify, then commit briefs/YYYY-MM-DD.md to the repo.
+# Runs on the schedule and from the "Run workflow" button (manual).
+# Pushes to v1-build that edit this file run the pipeline as a test but do NOT commit.
+name: Daily brief
+
+on:
+  schedule:
+    # GitHub cron is UTC and ignores daylight saving. 6am Mountain is 13:00 UTC
+    # in winter (MST) and 12:00 UTC in summer (MDT), so fire at both times and
+    # let the "gate" step below let through only the one that is 6am in Denver.
+    - cron: "0 12 * * *"
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+  push:
+    # Early testing: run when this file changes (cents per run, not per push).
+    branches: [v1-build]
+    paths: [".github/workflows/daily-brief.yml"]
+
+permissions:
+  contents: write   # lets the job commit the brief to the repo
+
+concurrency:
+  group: daily-brief          # never run two at once (e.g. schedule + manual)
+  cancel-in-progress: false
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - name: Gate (scheduled runs only proceed at 6am Mountain)
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(TZ=America/Denver date +%H)" != "06" ]; then
+            echo "Not 6am in Denver; skipping this trigger."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.go == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.go == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        if: steps.gate.outputs.go == 'true'
+        run: pip install -r requirements.txt
+      - name: Test
+        if: steps.gate.outputs.go == 'true'
+        run: python -m pytest -q
+      - name: Fetch
+        if: steps.gate.outputs.go == 'true'
+        run: python -m src.fetch
+      - name: Rank
+        if: steps.gate.outputs.go == 'true'
+        run: python -m src.rank
+      - name: Write draft
+        if: steps.gate.outputs.go == 'true'
+        run: python -m src.write
+      - name: Verify and publish (runs even if an earlier step failed, so it fails closed)
+        if: steps.gate.outputs.go == 'true' && always()
+        run: python -m src.verify
+      - name: Commit brief to briefs/
+        # Scheduled and manual runs only. Commits made with the built-in token
+        # do not trigger other workflows, so there is no loop.
+        if: steps.gate.outputs.go == 'true' && github.event_name != 'push' && always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add briefs/
+          if git diff --cached --quiet; then
+            echo "No new brief to commit."
+          else
+            git commit -m "Daily brief $(date -u +%F)"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+      - name: Save outputs for inspection
+        if: steps.gate.outputs.go == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brief-data
+          path: |
+            data/
+            briefs/
+          if-no-files-found: warn

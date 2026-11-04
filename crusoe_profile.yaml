@@ -1,0 +1,15 @@
+# Background facts about Crusoe, used by the ranker and the writer to judge
+# relevance and to explain "why it matters".
+#
+# These facts were supplied by the repo owner. They are NOT from collected
+# articles, so the writer may use them only as context for "why it matters",
+# never as the facts of "what happened". Keep them current: edit freely.
+
+facts:
+  - "Vertically integrated AI infrastructure: power -> modular manufacturing -> data centers -> Crusoe Cloud."
+  - "1.2 GW Abilene, TX campus, built for Oracle."
+  - "900 MW Abilene, TX campus for Microsoft."
+  - "Two other Texas campuses and one in Missouri."
+  - "Spark modular data center factory in Brighton, CO."
+  - "About 4.9 GW contracted; pipeline of more than 40 GW."
+  - "Reportedly exploring an IPO (unconfirmed; always call it reported)."
