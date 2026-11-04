@@ -1,9 +1,11 @@
-# Manual-only: confirms every feed in sources.yaml returns items, from
-# GitHub's runners (which have open internet). Run it from the Actions tab.
+# Confirms every feed in sources.yaml returns items, from
+# GitHub's runners (which have open internet). Runs on every push to v1-build, or manually from the Actions tab.
 name: Check feeds
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:   # manual button (appears once this file is on main)
+  push:
+    branches: [v1-build]
 
 jobs:
   check:

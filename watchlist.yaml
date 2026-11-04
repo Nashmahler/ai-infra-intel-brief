@@ -5,12 +5,12 @@
 markets:
   ai_compute_cloud:
     label: "AI compute & cloud"
-    terms: [CoreWeave, Lambda, Nebius, "Together AI", "Oracle Cloud", AWS,
+    terms: [CoreWeave, "Lambda Labs", "Lambda Cloud", Nebius, "Together AI", "Oracle Cloud", AWS,
             "Microsoft Azure", "Google Cloud", OpenAI, Stargate, Anthropic, xAI]
   power_energy:
     label: "Power & energy"
     terms: ["power purchase agreement", PPA, "data center power", "nuclear",
-            "natural gas", "interconnection queue", FERC, ERCOT, "utility"]
+            "natural gas", "interconnection queue", FERC, ERCOT]
   data_center_construction:
     label: "Data center construction"
     terms: ["hyperscale campus", Abilene, "modular data center",
@@ -23,4 +23,4 @@ markets:
 # Any mention of these is always relevant.
 crusoe:
   label: "Crusoe"
-  terms: [Crusoe, "Chase Lochmiller", "Crusoe Cloud", "Spark"]
+  terms: [Crusoe, "Chase Lochmiller", "Crusoe Cloud", "Crusoe Spark"]
