@@ -19,9 +19,11 @@ ARTICLE = ("Paragraph one. The agreement covers 200 megawatts of new capacity, t
 FULLTEXT = {"articles": {REAL: ARTICLE}}
 
 
-def top(link, quote=GOOD_QUOTE, confidence="Reported"):
+def top(link, quote=GOOD_QUOTE, confidence="Reported", **extra):
     return {"what_happened": "W", "quote": quote, "why_it_matters": "Y", "area": "power",
-            "confidence": confidence, "link": link}
+            "direction": "Risk", "channel": "Siting & timeline", "size": "unsized", "size_quote": "",
+            "consider": "Ask whether the Abilene timeline holds.",
+            "confidence": confidence, "link": link, **extra}
 
 
 def brief(top_links, watch_links=(), noise_links=(), **kw):
@@ -216,3 +218,126 @@ def test_all_summary_only_and_the_no_brief_note_has_no_such_count():
     assert "top stories with full article text: 0 of 1 (1 summary only)" in md
     note, _, ok = build_final(DAY, RAW, brief(["https://fake.example/1"]))
     assert not ok and "top stories" not in note
+
+
+# ------------------------------------------------------------ business impact
+
+import pytest
+
+from src.write import CHANNELS, DIRECTIONS
+
+NEB = "https://pub.com/nebius"
+NEB_ITEMS = [{"title": "Nebius credit line", "link": NEB, "source": "S", "publisher": "Pub",
+              "published": "2026-11-04T00:00:00+00:00",
+              "summary": "Nebius secured a $3.5 billion credit line ahead of its November 12 earnings."}]
+NEB_RAW = {"stats": {"scanned": 3, "kept": 1}, "failed_sources": [], "items": NEB_ITEMS}
+NEB_QUOTE = "Nebius secured a $3.5 billion credit line ahead of its November 12 earnings"
+
+
+def impact(size, size_quote="", link=NEB, quote=NEB_QUOTE, **extra):
+    return {"top": [top(link, quote=quote, size=size, size_quote=size_quote, **extra)],
+            "watchlist": [], "noise": []}
+
+
+def publish(b, raw=NEB_RAW, fulltext=None):
+    md, log, ok = build_final(DAY, raw, b, fulltext=fulltext)
+    assert ok, md
+    return md, log
+
+
+def test_an_invented_dollar_figure_not_in_the_source_becomes_unsized():
+    md, log = publish(impact("$5 billion"))                      # no quote at all backs it
+    assert "- **Size:** unsized" in md and "$5 billion" not in md
+    assert [(r["action"], r["size"]) for r in log] == [("size_reset", "$5 billion")]
+    assert "no verified quote" in log[0]["reason"]
+
+
+def test_an_invented_figure_with_a_fabricated_quote_also_becomes_unsized():
+    fake = "Nebius committed $5 billion to a new campus in Ohio this week"
+    md, log = publish(impact("$5 billion", fake))
+    assert "- **Size:** unsized" in md and "$5 billion" not in md
+    assert "quote not found in the source text" in log[0]["reason"]
+
+
+def test_a_real_figure_in_a_real_quote_is_kept_and_cited():
+    md, log = publish(impact("$3.5 billion", NEB_QUOTE))
+    assert "- **Size:** $3.5 billion (stated in the source)" in md and log == []
+    assert f'**Size:** "{NEB_QUOTE}" (RSS summary)</sub>' in md                  # its own evidence
+
+
+def test_a_figure_from_the_full_article_is_tagged_article_text():
+    md, _ = publish(impact("200 megawatts", "The agreement covers 200 megawatts of new capacity",
+                           link=REAL, quote="The agreement covers 200 megawatts of new capacity"),
+                    raw=RAW, fulltext=FULLTEXT)
+    assert "- **Size:** 200 megawatts (stated in the source)" in md
+    assert '**Size:** "The agreement covers 200 megawatts of new capacity" (article text)' in md
+
+
+def test_the_figure_must_be_copied_exactly_from_its_quote():
+    for rewritten in ("$3.5B", "$3.5 Billion", "about $3.5 billion", "$4 billion", "3.5 billion dollars"):
+        md, log = publish(impact(rewritten, NEB_QUOTE))
+        assert "- **Size:** unsized" in md, rewritten
+        assert log[0]["reason"] == "figure does not appear in its quote"
+
+
+def test_a_figure_can_come_from_the_company_profile_without_a_quote():
+    md, log = publish(impact("1.2 GW"))
+    assert "- **Size:** 1.2 GW (from the company profile)" in md and log == []
+    md, log = publish(impact("2.4 GW"))                                          # looks like the profile, isn't
+    assert "- **Size:** unsized" in md and "2.4 GW" not in md
+
+
+def test_vague_amounts_and_long_text_are_not_figures():
+    for vague in ("billions", "large", "a significant amount", "x" * 70 + "1"):
+        md, log = publish(impact(vague))
+        assert "- **Size:** unsized" in md and log[0]["reason"] == "size is not a stated figure"
+
+
+def test_saying_unsized_in_any_form_is_accepted_without_a_log_entry():
+    for form in ("unsized", "Unsized", " unsized. ", ""):
+        md, log = publish(impact(form))
+        assert "- **Size:** unsized" in md and log == []
+
+
+def test_a_size_quote_that_is_too_short_or_spliced_does_not_count():
+    for bad in ("$3.5 billion", "secured a $3.5 billion ... ahead of earnings"):
+        md, _ = publish(impact("$3.5 billion", bad))
+        assert "- **Size:** unsized" in md
+
+
+def test_a_reset_size_never_removes_the_item_or_changes_its_claim_quote():
+    md, log = publish(impact("$5 billion"))
+    assert "**What happened:** W" in md and f'"{NEB_QUOTE}"' in md
+    assert not any(r["action"] == "removed" for r in log)
+
+
+@pytest.mark.parametrize("direction", DIRECTIONS)
+@pytest.mark.parametrize("channel", CHANNELS)
+def test_every_allowed_direction_and_channel_is_accepted(direction, channel):
+    md, log = publish(impact("unsized", direction=direction, channel=channel))
+    assert f"- **Direction:** {direction}".replace("- ", "  - ", 1) in md and f"**Channel:** {channel}" in md
+    assert log == []
+
+
+@pytest.mark.parametrize("field,bad,reason", [
+    ("direction", "Neutral", "invalid direction"), ("direction", "risk", "invalid direction"),
+    ("direction", "", "invalid direction"), ("channel", "Marketing", "invalid channel"),
+    ("channel", "Revenue and pricing", "invalid channel"), ("channel", None, "invalid channel"),
+    ("consider", "", "missing consider"), ("consider", "   ", "missing consider")])
+def test_invalid_direction_channel_or_missing_consider_removes_the_item(field, bad, reason):
+    clean, log = verify_brief(impact("unsized", **{field: bad}), collected_links(NEB_ITEMS),
+                              evidence_index(NEB_ITEMS, None))
+    assert clean["top"] == [] and log[0]["action"] == "removed" and reason in log[0]["reason"]
+
+
+def test_the_impact_block_follows_why_it_matters_in_the_published_brief():
+    md, _ = publish(impact("$3.5 billion", NEB_QUOTE, direction="Opportunity",
+                           channel="Financing & cost of capital", consider="Ask whether to bid for the Nebius-linked sites."))
+    lines = md.splitlines()
+    start = next(i for i, l in enumerate(lines) if l.startswith("- **Why it matters"))
+    assert lines[start + 1:start + 6] == [
+        "- **Business impact:**", "  - **Direction:** Opportunity",
+        "  - **Channel:** Financing & cost of capital",
+        "  - **Size:** $3.5 billion (stated in the source)",
+        "  - **Consider:** Ask whether to bid for the Nebius-linked sites."]
+    assert lines[start + 6].startswith("- **Confidence:**")

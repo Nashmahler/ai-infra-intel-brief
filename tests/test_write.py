@@ -18,6 +18,9 @@ def stub(reply):
 
 def top(i):
     return {"what_happened": f"W{i}", "quote": f"quote number {i} here", "why_it_matters": f"Y{i}", "area": "power",
+            "direction": "Risk", "channel": "Siting & timeline", "size": "unsized", "size_quote": "",
+            "consider": "Ask whether to bring the Abilene date forward.",
+
             "confidence": "Reported", "link": f"https://x.com/{i}"}
 
 
@@ -127,3 +130,29 @@ def test_evidence_line_renders_small_with_its_source():
         '- <sub>**Evidence:** "a short quote here" (article text)</sub>'
     assert evidence_line({**base, "evidence_source": "summary"}).endswith('(RSS summary)</sub>')
     assert evidence_line(base) == '- <sub>**Evidence:** "a short quote here"</sub>'
+
+
+def test_schema_limits_direction_and_channel_to_the_allowed_values():
+    from src.write import CHANNELS, DIRECTIONS, build_schema
+    props = build_schema()["properties"]["top"]["items"]
+    assert props["properties"]["direction"]["enum"] == DIRECTIONS == ["Opportunity", "Risk"]
+    assert props["properties"]["channel"]["enum"] == CHANNELS
+    assert CHANNELS == ["Revenue & pricing", "Costs & margins", "Financing & cost of capital",
+                        "Customers & pipeline", "Siting & timeline"]
+    for field in ("direction", "channel", "size", "size_quote", "consider"):
+        assert field in props["required"]
+
+
+def test_writer_prompt_forbids_estimated_figures_and_generic_advice():
+    from src.write import build_system_prompt
+    p = build_system_prompt()
+    assert "NEVER estimate" in p and "write exactly: unsized" in p
+    assert "Financing & cost of capital" in p and "Siting & timeline" in p
+    assert "No generic advice" in p and "BECAUSE of this story" in p
+
+
+def test_draft_rendering_shows_the_impact_block_without_a_basis_note():
+    from src.write import impact_lines
+    item = {"direction": "Risk", "channel": "Costs & margins", "size": "$1 billion", "consider": "Ask X."}
+    assert impact_lines(item)[3] == "  - **Size:** $1 billion"              # not verified yet: no 'stated in' claim
+    assert impact_lines({**item, "size": "unsized"})[3] == "  - **Size:** unsized"
