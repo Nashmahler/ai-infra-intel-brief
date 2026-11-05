@@ -85,3 +85,43 @@ def test_ranker_prompt_has_profile_and_story_grouping():
     assert "1.2 GW Abilene" in p and "same underlying event" in p
     assert "scoring news items for Crusoe" in p and "Oracle, Microsoft" in p
     assert "AI compute & cloud" in p            # markets come from watchlist.yaml
+
+
+# ------------------------------------------------- the relevance-first ranking rules
+
+def flat(text):
+    return " ".join(text.split())
+
+
+def test_relevance_is_decided_before_novelty_and_source_quality():
+    p = build_system_prompt()
+    assert p.index("1. Relevance") < p.index("2. Novelty") < p.index("3. Source quality")
+    assert "comes FIRST" in p
+
+
+def test_a_weak_source_lowers_confidence_never_the_score_of_a_relevant_story():
+    p = flat(build_system_prompt())
+    assert "Source quality is about CONFIDENCE, not relevance" in p
+    assert 'the brief labels it "Reported"' in p
+    assert "must NEVER lower the score of a story that is relevant and new" in p
+    assert "A relevant, new story from a weak outlet scores at least 3" in p
+    assert "its reason must say that the outlet is weak" in p
+    assert "and say in it when the source is weak" in p
+
+
+def test_opinion_with_no_new_facts_is_penalised_for_novelty_not_for_its_source():
+    p = flat(build_system_prompt())
+    assert "Opinion and commentary with no new facts score low for THIS reason" in p
+    assert "opinion pieces and aggregator reposts lowest" not in p.lower()        # the old source-quality rule is gone
+
+
+def test_vendor_and_supplier_announcements_score_2_unless_cost_capacity_or_supply_is_affected():
+    p = flat(build_system_prompt())
+    assert "Vendor and supplier product announcements" in p and "score 2, unless" in p
+    assert "directly affects Crusoe's cost, capacity, or supply" in p
+    assert "only then may they score 3 or more" in p
+
+
+def test_the_profile_and_story_grouping_rules_are_untouched():
+    p = build_system_prompt()
+    assert "1.2 GW Abilene" in p and "same underlying event" in p and "Oracle, Microsoft" in p

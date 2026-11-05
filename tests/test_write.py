@@ -171,3 +171,11 @@ def test_a_legacy_profile_basis_is_not_rendered_as_a_claim():
     item = {"direction": "Risk", "channel": "Costs & margins", "size": "1.2 GW",
             "size_basis": "profile", "consider": "Ask X."}
     assert impact_lines(item)[3] == "  - **Size:** 1.2 GW"                  # no "(from the company profile)"
+
+
+def test_writer_prompt_makes_a_weak_source_reported_unless_the_text_shows_a_primary_source():
+    from src.write import build_system_prompt
+    p = " ".join(build_system_prompt().split())
+    assert "A weak source also means Reported" in p
+    assert "calls the outlet weak, low-tier, low-quality, or an aggregator, use Reported" in p
+    assert "unless the story text itself shows a primary source" in p
