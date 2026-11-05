@@ -7,6 +7,10 @@ name: Ranker eval
 on:
   workflow_dispatch:       # Actions -> Ranker eval -> Run workflow
     inputs:
+      file:
+        description: "Which labeled file to score (evals/labeled_headlines.yaml, or evals/heldout_headlines.yaml for the held-out set)"
+        type: string
+        default: "evals/labeled_headlines.yaml"
       runs:
         description: "How many times to rank the 20 headlines (the ranker varies run to run; 3 is a fairer number)"
         type: string
@@ -34,4 +38,4 @@ jobs:
       - name: Install
         run: pip install -r requirements.txt
       - name: Run the eval
-        run: python -m src.evaluate --runs "${{ inputs.runs || '1' }}"
+        run: python -m src.evaluate --file "${{ inputs.file || 'evals/labeled_headlines.yaml' }}" --runs "${{ inputs.runs || '1' }}"

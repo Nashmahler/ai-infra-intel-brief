@@ -1,9 +1,9 @@
 """Eval: how often does the ranker agree with the hand labels?
 
-    python -m src.evaluate [--runs N]
+    python -m src.evaluate [--runs N] [--file evals/heldout_headlines.yaml]
 
 Reads evals/labeled_headlines.yaml (20 headlines, each labeled signal or noise by
-a person), runs the REAL ranking step on them (needs ANTHROPIC_API_KEY), and
+a person; `--file` picks another labeled file, e.g. the held-out set), runs the REAL ranking step on them (needs ANTHROPIC_API_KEY), and
 treats a ranker score of 3 or more as "signal". Then it reports:
 
   agreement        how often the ranker and the person said the same thing
@@ -150,6 +150,16 @@ def format_multi_report(s: dict) -> str:
     return "\n".join(lines)
 
 
+def parse_file(argv: list[str]):
+    """`--file PATH` (relative to the repo root); default is the main eval set."""
+    if "--file" not in argv:
+        return EVALS_FILE
+    try:
+        return ROOT / argv[argv.index("--file") + 1]
+    except IndexError:
+        raise EvalError("--file needs a path") from None
+
+
 def parse_runs(argv: list[str]) -> int:
     """`--runs N` from the command line (default 1)."""
     if "--runs" not in argv:
@@ -169,7 +179,8 @@ def main() -> int:
         return 1
     try:
         runs = parse_runs(sys.argv[1:])
-        rows = load_labeled()
+        path = parse_file(sys.argv[1:])
+        rows = load_labeled(path)
         client = anthropic.Anthropic()
         results = [compare(rows, rank_items(to_items(rows), client)) for _ in range(runs)]
     except EvalError as err:
@@ -181,7 +192,9 @@ def main() -> int:
     else:
         result = summarize_runs(results)
         report = format_multi_report(result)
+    report = f"Eval file: {path.relative_to(ROOT) if path.is_relative_to(ROOT) else path}\n{report}"
     print(report)
+    result["file"] = str(path.name)
     (data_dir() / "eval_report.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     if path := os.environ.get("GITHUB_STEP_SUMMARY"):      # show it on the run page too
         with open(path, "a", encoding="utf-8") as f:

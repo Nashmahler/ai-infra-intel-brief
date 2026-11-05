@@ -2,7 +2,9 @@
 # Fetches and ranks today's news on a runner (the only place with network access
 # to the feeds and the API key), then picks 20 headlines stratified by what the
 # ranker thought, WITHOUT writing the scores, and commits the unlabeled file.
-# It refuses to overwrite a file that already has labels (delete the file first to
+# With the "heldout" input it builds a SECOND set (evals/heldout_headlines.yaml) that
+# shares no headline, link or story with the main one, for checking a prompt on
+# headlines it was never tuned on. It refuses to overwrite a file that already has labels (delete the file first to
 # rebuild the sample, and expect to relabel it).
 name: Eval sample
 
@@ -13,6 +15,10 @@ on:
         description: "Commit the sample to the branch (untick to just see it in the log)"
         type: boolean
         default: true
+      heldout:
+        description: "Build the HELD-OUT set (evals/heldout_headlines.yaml) instead, avoiding every headline and story in the main set"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -40,13 +46,18 @@ jobs:
       - name: Rank them
         run: python -m src.rank
       - name: Pick the 20 headlines
-        run: python -m src.evalset
+        run: |
+          if [ "${{ inputs.heldout }}" = "true" ]; then
+            python -m src.evalset --out evals/heldout_headlines.yaml --exclude evals/labeled_headlines.yaml
+          else
+            python -m src.evalset
+          fi
       - name: Commit the unlabeled sample
         if: inputs.commit == true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add evals/labeled_headlines.yaml
+          git add evals/
           if git diff --cached --quiet; then
             echo "No change to commit."
           else
