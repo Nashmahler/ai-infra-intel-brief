@@ -7,7 +7,8 @@ import pytest
 import yaml
 
 import src.evaluate as evaluate
-from src.evaluate import EvalError, compare, format_report, load_labeled, to_items
+from src.evaluate import (EvalError, compare, format_multi_report, format_report, load_labeled, parse_runs,
+                          summarize_runs, to_items)
 
 REAL_FILE = Path(__file__).resolve().parent.parent / "evals" / "labeled_headlines.yaml"
 
@@ -144,3 +145,63 @@ def test_main_refuses_an_unlabeled_file_and_a_missing_key(repo, monkeypatch, cap
     assert evaluate.main() == 1 and "Eval not ready" in capsys.readouterr().out
     monkeypatch.delenv("ANTHROPIC_API_KEY")
     assert evaluate.main() == 1 and "ANTHROPIC_API_KEY is not set" in capsys.readouterr().out
+
+
+# ----------------------------------------------------------------- several runs
+
+def runs_of(labels, *score_lists):
+    return [compare(rows(labels), scored(s)) for s in score_lists]
+
+
+def test_summary_averages_agreement_and_finds_stable_and_flaky_misses():
+    labels = ["signal", "signal", "noise", "noise"]
+    summary = summarize_runs(runs_of(labels,
+                                     [5, 2, 1, 1],       # #2 wrong
+                                     [5, 2, 3, 1],       # #2 wrong, #3 wrong
+                                     [5, 3, 1, 1]))      # all right
+    assert summary["runs"] == 3 and summary["agreements"] == [3, 2, 4]
+    assert summary["mean_correct"] == 3.0 and summary["mean_agreement"] == 0.75
+    assert summary["mean_fp"] == 1 / 3 and summary["mean_fn"] == 2 / 3
+    assert [i["id"] for i in summary["wrong_every_run"]] == []
+    assert [(i["id"], i["wrong"], i["scores"]) for i in summary["wrong_some_runs"]] == [(2, 2, [2, 2, 3]), (3, 1, [1, 3, 1])]
+
+
+def test_a_headline_wrong_in_every_run_is_called_out_with_its_direction():
+    summary = summarize_runs(runs_of(["signal", "noise"], [2, 4], [1, 3], [2, 3]))
+    assert [i["id"] for i in summary["wrong_every_run"]] == [1, 2]
+    text = format_multi_report(summary)
+    assert "Wrong in every run (2):" in text and "(false negative)" in text and "(false positive)" in text
+    assert "ranker scores 2,1,2" in text and "wrong 3/3" in text
+
+
+def test_the_multi_run_report_leads_with_per_run_and_mean_agreement():
+    summary = summarize_runs(runs_of(["signal", "noise"] * 2, [5, 1, 5, 1], [5, 1, 2, 1], [5, 1, 5, 3]))
+    text = format_multi_report(summary)
+    assert "Ranker eval over 3 runs: score >= 3 counts as signal" in text
+    assert "Agreement per run: 4/4, 3/4, 3/4" in text and "Mean agreement: 3.3/4 (83%)" in text
+    assert "Wrong in some runs (2):" in text and "All headlines" in text
+
+
+def test_parse_runs_defaults_to_one_and_validates():
+    assert parse_runs([]) == 1 and parse_runs(["--runs", "3"]) == 3
+    for bad in (["--runs"], ["--runs", "x"], ["--runs", "0"], ["--runs", "11"]):
+        with pytest.raises(EvalError):
+            parse_runs(bad)
+
+
+def test_main_with_runs_ranks_that_many_times_and_reports_the_mean(repo, monkeypatch, capsys):
+    path = write(repo, ["signal", "noise"])
+    monkeypatch.setattr(evaluate, "EVALS_FILE", path)
+    answers = iter([[5, 1], [2, 1], [5, 4]])                         # run 2 misses #1, run 3 flags #2
+
+    def client_with_a_new_answer_each_call():
+        def create(**kw):
+            return stub_client(next(answers)).messages.create(**kw)
+        return SimpleNamespace(messages=SimpleNamespace(create=create))
+    monkeypatch.setattr(evaluate.anthropic, "Anthropic", client_with_a_new_answer_each_call)
+    monkeypatch.setattr("sys.argv", ["evaluate", "--runs", "3"])
+    assert evaluate.main() == 0
+    out = capsys.readouterr().out
+    assert "Agreement per run: 2/2, 1/2, 1/2" in out and "Mean agreement: 1.3/2 (67%)" in out
+    saved = json.loads((repo / "data" / "eval_report.json").read_text())
+    assert saved["runs"] == 3 and saved["agreements"] == [2, 1, 1]

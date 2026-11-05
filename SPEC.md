@@ -67,7 +67,7 @@ Start with free RSS feeds so nothing requires a login:
 - TechCrunch AI category RSS
 - The Register data center section RSS
 - Google News RSS searches (e.g., `https://news.google.com/rss/search?q=CoreWeave`): shared industry searches in `sources.yaml`, plus the target company's own in its profile
-- SEC EDGAR filings feeds for public competitors (CoreWeave, Nebius, Oracle) (deferred past v1; see the README)
+- SEC EDGAR filings feeds for public competitors (CoreWeave, Nebius, Oracle) (deferred past v1; see "What's next" in docs/architecture.md)
 
 Keep the shared list in `sources.yaml`. Confirm each feed URL works before relying on it, and drop any that fail.
 
@@ -114,7 +114,7 @@ A single Python script that runs once a day on GitHub Actions:
 5. Write the source-verification check in code: remove any brief item whose link isn't in the collected set, and log removals. Add tests, including a deliberately fake link.
 6. Add an eval script that runs the ranking step against `evals/labeled_headlines.yaml` and reports agreement. (Nash writes the 20 labels.) *Done: the sample is built by `src.evalset`, the script is `src.evaluate`.*
 7. Add a GitHub Actions workflow that runs daily from 6:00 a.m. Mountain time (any scheduled start from 6:00 to 11:59 a.m. Denver counts, as long as today's brief is not already on main, because GitHub can start scheduled runs late), can also be run manually, and commits the brief to `briefs/<profile>/YYYY-MM-DD.md`.
-8. Write a README: what it does, how it works, how verification works, known limitations.
+8. Write a README: what it does, how it works, how verification works, known limitations. *Done as a short README for a quick read (what it does, why it is trustworthy, limitations) plus `docs/architecture.md`, `docs/setup.md` and `docs/evals.md` for the detail.*
 
 Keep the code simple and well-commented; it will be walked through with a hiring team.
 

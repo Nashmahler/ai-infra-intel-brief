@@ -116,7 +116,9 @@ def test_eval_workflows_are_manual_only_and_keep_the_key_in_secrets():
         assert "secrets.ANTHROPIC_API_KEY" in text and "sk-ant" not in text
     assert load("eval.yml")["permissions"] == {"contents": "read"}      # the eval never writes to the repo
     steps = load("eval.yml")["jobs"]["eval"]["steps"]
-    assert steps[-1]["run"] == "python -m src.evaluate"
+    assert steps[-1]["run"].startswith("python -m src.evaluate --runs ")
+    runs = triggers(load("eval.yml"))["workflow_dispatch"]["inputs"]["runs"]
+    assert runs["default"] == "1"                                       # one run unless asked for more
 
 
 def test_the_sample_workflow_ranks_before_sampling_and_only_commits_when_asked():

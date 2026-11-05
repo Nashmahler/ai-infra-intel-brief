@@ -100,6 +100,10 @@ TOP DEVELOPMENTS: choose the three most important stories from CANDIDATES.
         "people familiar with", leaks, rumors, analyst estimates, or the
         outlet's own analysis.
       If unsure, use Reported. Word Reported facts as reported ("X reportedly...").
+      A weak source also means Reported: when a story's score reason calls the
+      outlet weak, low-tier, low-quality, or an aggregator, use Reported unless the
+      story text itself shows a primary source (the company's own statement, a
+      filing, or a regulator).
   - link: copy the story's link exactly.
 WATCHLIST: three to six other CANDIDATES, one line each, grouped by market.
   Do not repeat a story already used in TOP DEVELOPMENTS.
