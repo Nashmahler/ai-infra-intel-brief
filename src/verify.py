@@ -13,10 +13,11 @@ This is a plain code check, not an AI check:
      summary backs it, the label is downgraded to "Reported". Both are logged.
   2b. The business-impact fields are checked too. Direction and Channel must be
      one of the allowed values (otherwise the item is removed). Size must be a
-     figure copied word for word from a quote that passes the quote check, or
-     from the company profile; anything else (an invented or estimated number, a
-     vague amount, a figure whose quote fails) is reset to exactly "unsized",
-     and the reset is logged.
+     figure copied word for word from the STORY'S OWN quote, one that passes the
+     quote check. Company-profile figures (e.g. a campus capacity) never count as
+     a Size, though they may appear in "Why it matters". Anything else (an invented
+     or estimated number, a vague amount, a profile figure, a figure whose quote
+     fails) is reset to exactly "unsized", and the reset is logged.
   3. If collection failed, the brief is missing, or no top development
      survives, we write a short "no verified brief today" file instead of a
      brief with unsupported claims. (Fail closed.)
@@ -96,13 +97,17 @@ def check_impact(item: dict) -> str | None:
     return None
 
 
-def resolve_size(item: dict, held: dict, profile_text: str) -> tuple[str, str | None, str | None, str | None]:
+def resolve_size(item: dict, held: dict, profile_text: str = "") -> tuple[str, str | None, str | None, str | None]:
     """Decide the Size field. Returns (size, basis, size_evidence_source, why_reset).
 
-    A figure is accepted only if it is copied word for word from
-      - the company profile (basis "profile"), or
-      - a size_quote that passes the same quote check as every claim, and that
-        itself contains the figure (basis "source").
+    A figure is accepted only if it is copied word for word from a size_quote that
+    passes the same quote check as every claim, and that itself contains the
+    figure (basis "source"). That is the story's own text, nothing else.
+
+    The company profile is NEVER a source of Size: a profile figure (such as a
+    campus capacity) describes the company's exposure, not the size of what the
+    story reports. `profile_text` is used only to say so in the log.
+
     Everything else becomes exactly "unsized"; `why_reset` says why, or is None
     when the model simply (and correctly) said "unsized".
     """
@@ -111,13 +116,13 @@ def resolve_size(item: dict, held: dict, profile_text: str) -> tuple[str, str | 
         return UNSIZED, None, None, None
     if not any(c.isdigit() for c in size) or len(size) > 60:
         return UNSIZED, None, None, "size is not a stated figure"
-    if normalize(size) in normalize(profile_text):
-        return size, "profile", None, None
+    from_profile = bool(profile_text) and normalize(size) in normalize(profile_text)
+    profile_why = "figure is from the company profile, not the story's own quote"
     problem, source = check_quote({"quote": item.get("size_quote") or ""}, held)
     if problem:
-        return UNSIZED, None, None, f"figure has no verified quote ({problem})"
+        return UNSIZED, None, None, profile_why if from_profile else f"figure has no verified quote ({problem})"
     if normalize(size) not in clean_quote(item["size_quote"]):
-        return UNSIZED, None, None, "figure does not appear in its quote"
+        return UNSIZED, None, None, profile_why if from_profile else "figure does not appear in its quote"
     return size, "source", source, None
 
 

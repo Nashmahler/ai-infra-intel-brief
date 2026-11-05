@@ -280,11 +280,54 @@ def test_the_figure_must_be_copied_exactly_from_its_quote():
         assert log[0]["reason"] == "figure does not appear in its quote"
 
 
-def test_a_figure_can_come_from_the_company_profile_without_a_quote():
-    md, log = publish(impact("1.2 GW"))
-    assert "- **Size:** 1.2 GW (from the company profile)" in md and log == []
-    md, log = publish(impact("2.4 GW"))                                          # looks like the profile, isn't
-    assert "- **Size:** unsized" in md and "2.4 GW" not in md
+PROFILE_FIGURES = ["1.2 GW", "900 MW", "4.9 GW", "40 GW"]          # from profiles/crusoe.yaml
+
+
+def test_the_profile_really_contains_these_figures():
+    from src.config import profile_facts_text
+    assert all(f in profile_facts_text() for f in PROFILE_FIGURES)
+
+
+@pytest.mark.parametrize("figure", PROFILE_FIGURES)
+def test_a_profile_figure_is_never_a_size_with_or_without_a_quote(figure):
+    for size_quote in ("", NEB_QUOTE, f"Crusoe's campus is {figure} in total"):    # none / real-but-lacks-it / fabricated
+        md, log = publish(impact(figure, size_quote))
+        assert "- **Size:** unsized" in md, (figure, size_quote)
+        assert f"**Size:** {figure}" not in md and "from the company profile" not in md
+        assert [r["action"] for r in log] == ["size_reset"] and log[0]["size"] == figure
+
+
+def test_the_log_says_a_profile_figure_was_rejected_because_it_is_not_the_stories():
+    _, log = publish(impact("1.2 GW", ""))
+    assert log[0]["reason"] == "figure is from the company profile, not the story's own quote"
+    _, log = publish(impact("1.2 GW", NEB_QUOTE))                    # a real quote that lacks the figure
+    assert log[0]["reason"] == "figure is from the company profile, not the story's own quote"
+    _, log = publish(impact("$5 billion", ""))                       # an invented non-profile figure
+    assert "no verified quote" in log[0]["reason"]
+
+
+def test_profile_figures_still_appear_in_why_it_matters_as_exposure_while_size_stays_unsized():
+    why = "Crusoe's 1.2 GW Abilene campus for Oracle and its 900 MW campus for Microsoft are exposed to Texas credit repricing."
+    b = impact("1.2 GW", "")
+    b["top"][0]["why_it_matters"] = why
+    md, log = publish(b)
+    assert f"**Why it matters to Crusoe:** {why}" in md                 # exposure text untouched
+    assert "- **Size:** unsized" in md and [r["action"] for r in log] == ["size_reset"]
+
+
+def test_a_figure_the_story_itself_states_is_a_size_even_if_the_profile_has_the_same_number():
+    """Source, not coincidence, decides: here the article's own quote contains '1.2 GW'."""
+    items = [{**NEB_ITEMS[0], "summary": "Oracle said the 1.2 GW Abilene campus will add capacity by next summer."}]
+    raw = {**NEB_RAW, "items": items}
+    quote = "Oracle said the 1.2 GW Abilene campus will add capacity by next summer"
+    md, log = publish(impact("1.2 GW", quote, quote=quote), raw=raw)
+    assert "- **Size:** 1.2 GW (stated in the source)" in md and log == []
+
+
+def test_no_published_size_ever_claims_to_come_from_the_profile():
+    import pathlib
+    for path in pathlib.Path(__file__).resolve().parent.parent.glob("src/*.py"):
+        assert "from the company profile)" not in path.read_text(), path.name       # no such label can be rendered
 
 
 def test_vague_amounts_and_long_text_are_not_figures():
