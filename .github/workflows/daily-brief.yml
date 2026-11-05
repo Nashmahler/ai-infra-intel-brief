@@ -1,5 +1,7 @@
 # Daily brief, 6:00 a.m. Mountain time.
-# fetch -> rank -> write -> verify, then commit briefs/<profile>/YYYY-MM-DD.md to the repo.
+# fetch -> rank -> full text -> write -> verify -> (Fridays) weekly themes -> index,
+# then commit briefs/<profile>/YYYY-MM-DD.md, the briefs index, and the README's
+# "Latest brief" link to the repo.
 # Runs on the schedule and from the "Run workflow" button (manual).
 # Pushes to v1-build that edit this file run the pipeline as a test but do NOT commit.
 name: Daily brief
@@ -12,6 +14,11 @@ on:
     - cron: "0 12 * * *"
     - cron: "0 13 * * *"
   workflow_dispatch:
+    inputs:
+      weekly:
+        description: "Also add this week's themes (normally only on Fridays)"
+        type: boolean
+        default: false
   push:
     # Early testing: run when this file changes (cents per run, not per push).
     branches: [v1-build]
@@ -61,12 +68,26 @@ jobs:
       - name: Rank
         if: steps.gate.outputs.go == 'true'
         run: python -m src.rank
+      - name: Fetch full text of the top articles
+        if: steps.gate.outputs.go == 'true'
+        run: python -m src.fulltext
       - name: Write draft
         if: steps.gate.outputs.go == 'true'
         run: python -m src.write
       - name: Verify and publish (runs even if an earlier step failed, so it fails closed)
         if: steps.gate.outputs.go == 'true' && always()
         run: python -m src.verify
+      - name: Weekly themes (Fridays, or when asked for in a manual run)
+        # Never blocks the daily brief: if this fails, the brief is committed as it was.
+        if: steps.gate.outputs.go == 'true' && always()
+        continue-on-error: true
+        run: python -m src.weekly
+        env:
+          FORCE_WEEKLY: ${{ inputs.weekly }}
+      - name: Update the briefs index and the README's latest link
+        if: steps.gate.outputs.go == 'true' && always()
+        continue-on-error: true
+        run: python -m src.index
       - name: Commit brief to briefs/
         # Scheduled and manual runs only. Commits made with the built-in token
         # do not trigger other workflows, so there is no loop.
@@ -74,7 +95,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add briefs/
+          git add briefs/ README.md
           if git diff --cached --quiet; then
             echo "No new brief to commit."
           else
