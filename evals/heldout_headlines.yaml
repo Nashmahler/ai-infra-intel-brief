@@ -1,0 +1,179 @@
+# HELD-OUT set: 20 headlines the ranking prompt has never been tuned on. They do not overlap
+# the main eval set (no shared headline, link, or story). Label them, run the eval ONCE per
+# prompt version, and do NOT change the prompt in response to these results; that would turn
+# this back into a training set. It exists to check how much of the main eval's score
+# carries over to headlines the prompt has not seen.
+#
+# Hand-labeled headlines for checking the ranker (SPEC.md section 6, "Eval set").
+#
+# Fill in `label:` for every headline with exactly one of:
+#   signal  = something Crusoe's strategy team would want to know
+#   noise   = not worth their attention
+#
+# Judge the headline (and summary) as a person, not what a ranking model would say:
+# the point of this file is to measure how often the ranker agrees with you.
+# The order is shuffled and no ranker scores are stored here, on purpose.
+#
+# Check the ranker against these labels with:   python -m src.evaluate
+
+profile: crusoe
+headlines:
+  - id: 1
+    headline: "AMD Cannot Catch Nvidia, But It Sure Can Make Some Money"
+    source: "The Next Platform"
+    published: "2026-11-04T20:31:15+00:00"
+    link: "https://news.google.com/rss/articles/CBMisAFBVV95cUxOZW04M29UeV80VTQ5ZmpFXy1NQjRacjhsSklob2pib0o1WU9qNWcwMEhRd01SM0FVbWVDcHR3b1V6ZXdIdG9tQy0zanBvZVhYY3lON0Z6WDhYWDFZMWZEM1pSWFJOclRtR0h1WDU5MklqM1U0aEhNdmV2TmxEeTJJaUhBUkN3NHR6NW1YRGM1NGVKeldDcDBTVVpzdDZUUXJVMENHbTNYMUxodFA5UFVsNQ?oc=5"
+    summary: "AMD Cannot Catch Nvidia, But It Sure Can Make Some Money &nbsp;&nbsp; The Next Platform"
+    label:                 # signal | noise
+
+  - id: 2
+    headline: "Nebius Stock Faces AI Data Center Permit Risk After US Election Results"
+    source: "Simply Wall St"
+    published: "2026-11-04T19:20:43+00:00"
+    link: "https://news.google.com/rss/articles/CBMiywFBVV95cUxQa0hYV0FOZ1NuTHlEMEwzNTl4WUVXR1B0Q0FsX1UwSUIxUlN2RDdRRUhxX193TEh1aUEzUnB5cUs2VTZ5dGM4eWcxM0k1RkJ3Y19WMzcxQy0wTV9TemdBLThJd1JadFMxbHNwWHo2QzZtdm9lTmFURjhGUjdmSElxUXlScHVXSkhvNHRqTjAzcTB5ZlhvVHVHaTRPWFBoaUh3MGtPVjBGZ3RUZTdKMTZqdjNCRXdrei1FRUx0UU5lOTVyMmF4bm9UaHlaa9IB0AFBVV95cUxQdFJHUnB0bDdwX0J0cmJQVHZxTG1pQWNDU0lsU2ZqMzZfbDRyZHB4ZDh2N1ZWTHRiWWw4VnFrdnROTnR0LVQwaVZqcDBIRlp6NUFaNnRaN2MwX0ZPeUVIUUIxcU1Lcm5ycmpYVWpzQmh2RmJJVG96TnU0RW1xQWo3NThLMk9XQmdsNUhoWXg0bmQ5VXk0bkJxU1RnTWxwb2FVd05fSUt6WWdNd3FWOFVTZXJTdlhTRXBfOUJZSEpmaGlhUDlaMExhSzA3amhBWkxl?oc=5"
+    summary: "Nebius Stock Faces AI Data Center Permit Risk After US Election Results &nbsp;&nbsp; Simply Wall St"
+    label:                 # signal | noise
+
+  - id: 3
+    headline: "Infineon Bets on 800V DC to Rewire AI Data Center Power, Partners with South Korea's SoluM, Hyosung Heavy Industries and LS Electric"
+    source: "BigGo Finance"
+    published: "2026-11-05T07:36:00+00:00"
+    link: "https://news.google.com/rss/articles/CBMidkFVX3lxTE9pdEZHRDhNSHZhMmlaYUEzaVNOV0hhcUg0REtUNDRueU9rUkR2WmJsX0JCN1dxOW9ValhmV0N4dHlBaXpXN1FYcHNUbmJNTlpRcm9RSDhYdzY2Vk9XNGt4Q055RkF1d1FOUHBZSlN6XzlVWXdMbFE?oc=5"
+    summary: "Infineon Bets on 800V DC to Rewire AI Data Center Power, Partners with South Korea's SoluM, Hyosung Heavy Industries and LS Electric &nbsp;&nbsp; BigGo Finance"
+    label:                 # signal | noise
+
+  - id: 4
+    headline: "Stargate Fans, Tachyon Pulse Podcast’s Jamie Rixom Just Gave You Something Worth Hearing"
+    source: "Fandom Pulse"
+    published: "2026-11-05T14:31:16+00:00"
+    link: "https://news.google.com/rss/articles/CBMidEFVX3lxTFBvVVEyNzZBQlROSGNjMy1sY1hEYW1VWlZWdlBLcG9nbi1TUDlBNnItbFkwWlZMNGpFcmhkSk56Q2hOX1RhZWNBMTMtOVF5OTNVZHJXZkZ4dE9hQktBVWpzdFY1VU5NSXZEMnZRRk4zZkhKVjdx?oc=5"
+    summary: "Stargate Fans, Tachyon Pulse Podcast’s Jamie Rixom Just Gave You Something Worth Hearing &nbsp;&nbsp; Fandom Pulse"
+    label:                 # signal | noise
+
+  - id: 5
+    headline: "Earnings Preview: CoreWeave to Report Financial Results Post-market on November 10"
+    source: "Moomoo"
+    published: "2026-11-05T01:25:46+00:00"
+    link: "https://news.google.com/rss/articles/CBMiswFBVV95cUxPeXlCSm9kWVF0N3BOWlphWDBrNTBWOVZZTVZQMWFkZXBOSW40V3M5dEZ2ZVVKQUlFNjV2UTBWd2RxZ3ZQczJFNjEzMXhPN281VThNdWVIUnNmd2Q2c3lxWDdXMDZvM0VWNHFSV0xiVDdUSUxmX0JWZ0VMYzcxZXMyb0VlVmk4TkhoM3RmZV91YUFoMWQtMEVKNHJSc1hYc0ZBQjd5eHN5TUktdnB2NjBCZXRibw?oc=5"
+    summary: "Earnings Preview: CoreWeave to Report Financial Results Post-market on November 10 &nbsp;&nbsp; Moomoo"
+    label:                 # signal | noise
+
+  - id: 6
+    headline: "Nebius Stock: The Bull Case, the Bear Case, and My Call Before Nov. 12"
+    source: "The Motley Fool"
+    published: "2026-11-05T08:41:00+00:00"
+    link: "https://news.google.com/rss/articles/CBMirgFBVV95cUxQaGJjek1QMFVZX0xHOTFVVW5UV0ZDZXp2Mk52MkhGV2o3VFFybEEyZmpPRWJQdFctOHh4RG54Y0NTbkxDSTc2T1oxMlNxMnNheEg4TlZNR3lEUVBKZS1oMGUtM0haOXVUaXVUQlY5ZlUxN1FvSWJKN2dUV2ZHWXRlU3VNd0V6eXZkT2psYjZsZlFJZEtlaXdsb3RmM2YwSmk1VG1vSkZnQ25jYkdkVXc?oc=5"
+    summary: "Nebius Stock: The Bull Case, the Bear Case, and My Call Before Nov. 12 &nbsp;&nbsp; The Motley Fool"
+    label:                 # signal | noise
+
+  - id: 7
+    headline: "Nvidia's new AI laptop runs nearly 80% slower on Linux — but only when it's plugged in"
+    source: "Tom's Guide"
+    published: "2026-11-05T13:00:00+00:00"
+    link: "https://news.google.com/rss/articles/CBMiugFBVV95cUxQc0J6NDRfbVNpUVY4LWlEaHE1NGJ2ZGVMamxGVVRfNVp2MEtTUDlmeWdEMXplMzdzb0FkTmlyejA4eXdUWXpoX1RwcVZ0SE4xZk9PZHRndXZBc3NzSkc3TThlNXZoRjBweHB5NWpPVmpYeldYeFdHemxpdGxUUzN5SWlIR3RheUpuYl9ORGtkdVNfTFduNXBTQU1hcUw4U1BFSjFLQndjSFRrdnhWaHF3cGI1blBRSTZ2VHc?oc=5"
+    summary: "Nvidia's new AI laptop runs nearly 80% slower on Linux — but only when it's plugged in &nbsp;&nbsp; Tom's Guide"
+    label:                 # signal | noise
+
+  - id: 8
+    headline: "The City of Tampa is considering a data center moratorium"
+    source: "wtsp.com"
+    published: "2026-11-05T11:22:00+00:00"
+    link: "https://news.google.com/rss/articles/CBMiyAFBVV95cUxNMUs1NHBJNDEydWR2Z295NHhHRldCRFY5V09nV3JqVUVucHBZSjhlWDNNdE9ybEJZQi00MzdPZDJzQ2NWUEl1T3p6ODNLUFlCbHNmaDQ2Z2NoSDZtRnVnelYtLTBmQUd1ZGQ5T0ZEZDVTb2lxUHdGMUx6YmstTENwRDlNd1MyV2Vla1ZPVHR3MGxWeU9RLUpDZ05MdEJNWENFUUNsaTVYcVV3Vzd5WWJkc3poR0M1dU5fRXA2SndIcTRHOUJXdy1WTQ?oc=5"
+    summary: "The City of Tampa is considering a data center moratorium &nbsp;&nbsp; wtsp.com"
+    label:                 # signal | noise
+
+  - id: 9
+    headline: "CoreWeave Sees No Vote Hit to $104B Backlog; 2.7 GW Not Live"
+    source: "FourWeekMBA"
+    published: "2026-11-05T12:39:20+00:00"
+    link: "https://news.google.com/rss/articles/CBMijwFBVV95cUxPY0NmYlEwd19UbXhlYU11NzI0RWVBYjRkWS12TFZBZS1kYVl1MDhkVWVETWpPNEdHSEZQeDVOeDJGUzdCSmREMFpURGhfVTAyZTlJQXVIY2NST1JhVlp2aElFZ0JBMnVHbUx5bWI5RjRUVGtXa1k5OU4zeGNSa1RmdW4yaU93RTdnOTIzN1g1MA?oc=5"
+    summary: "CoreWeave Sees No Vote Hit to $104B Backlog; 2.7 GW Not Live &nbsp;&nbsp; FourWeekMBA"
+    label:                 # signal | noise
+
+  - id: 10
+    headline: "BKV: Production and liquidity strengthened as power growth advanced amid softer ERCOT pricing"
+    source: "TradingView"
+    published: "2026-11-05T12:06:00+00:00"
+    link: "https://news.google.com/rss/articles/CBMihgJBVV95cUxOSS13SEp3RFZpdGp4ZEdGU1hSekZJUFVvYVgzMlZaS29Fb1NRaXk5UExSOWl2N05Pd2sxQk1MWC05eXp0YVNQMW5MRFBjUjU2NGxENThpTmhhQk1IYk00Q3A5MmVraHpoSXNDdm1XaVIzR3dJWGJpUWZYRERwemFXUnBMMHVPREo4TzJiOV9OVGl1VEFFRnNiVGpwNGdTRGtwYl9KSzhYeFJ4ZkNMN09jZmloT1QzNnZzUGRueUpFeHhrQjNDemNvOGdyLXJGMUh6VjFWQWl0MXV2MGtJV3BvYjJpZ01jLU9RWG9YTnFJVDI3aVlFbk9qc1pnNnlYNlBHSWNYQTZR?oc=5"
+    summary: "BKV: Production and liquidity strengthened as power growth advanced amid softer ERCOT pricing &nbsp;&nbsp; TradingView"
+    label:                 # signal | noise
+
+  - id: 11
+    headline: "NVIDIA GeForce NOW adds 24 games in November, Hogwarts Legacy gets DLSS 5"
+    source: "VideoCardz.com"
+    published: "2026-11-05T13:45:42+00:00"
+    link: "https://news.google.com/rss/articles/CBMiogFBVV95cUxQZG1PZnRHRWs3S2piNDFydHhJWG5VMVZyal9UVlQ2REF3LVNqNkt6RHF1LUJvZ3k5OFZOcnNxU1c4VTBmdEhsNXdBZ1dtMjBPX1BYLUI0QmgxRUVHM0Q1UERJQU5yelZxSXk4MldGTldDZGR1OVdLaTFnM01Db0hza0xaakU1djBYcXBoZVRpY1lIcVZtSXFIaFVNR2FhcFNnZHc?oc=5"
+    summary: "NVIDIA GeForce NOW adds 24 games in November, Hogwarts Legacy gets DLSS 5 &nbsp;&nbsp; VideoCardz.com"
+    label:                 # signal | noise
+
+  - id: 12
+    headline: "Newly elected PSC member supports data center moratorium"
+    source: "WSB-TV"
+    published: "2026-11-05T00:26:00+00:00"
+    link: "https://news.google.com/rss/articles/CBMiuAFBVV95cUxPRjBHRXZPbG5KRHBmVzdZSkhwY1I3VHBPN29lRGZWOUN5aUNRZzA4SGVWQktSdWFZczdMSGpsZmZaR2VpR3pNSVFleHhyUGtoUllhR0tySDU5eDN4dVhRWGNSM3hsT0FaV2dZclcwVWtGdldKV3dmS09McWJZY1dsWHBIWjdqdV9lTkMzR2I2MmNKX194M2JJSnBuQlFTeXNoR01xODd6TTFLS0pIZ1JYdTdRcnpFRTRq0gHMAUFVX3lxTFBxb0x5MkZhUjBkMV90N1R3STlGOWVaekpfUFpOUWpudC1PZ2gtc3FuSjB5X1VtV0c1eUZHT3ZOSVI1V2JVdnpHbEFfaThhWTZJd1V0dVllYS1manNMN1FqQU9tY255OHczSEEzYVRmTVpNQkczWGVGSDdhb01pTWpjeTk3ZEJKNy1iQXpOV3ZXQzFuRl9EajhQc1cxOGtoQUZ6UXVjRHVVV201LTNLN1Z6Q2xOalFaZEtiekFsbnBCbWVGWUNVMWFKM3AyWQ?oc=5"
+    summary: "Newly elected PSC member supports data center moratorium &nbsp;&nbsp; WSB-TV"
+    label:                 # signal | noise
+
+  - id: 13
+    headline: "FurMark 2.11 adds full NVIDIA RTX Spark support, new Radeon RX 9050 and Intel Arc Pro GPUs"
+    source: "VideoCardz.com"
+    published: "2026-11-04T20:25:27+00:00"
+    link: "https://news.google.com/rss/articles/CBMiuAFBVV95cUxPY2IwbTNVdml3RExKdkJWN1FNMHFycE5vR0QtWGxGRGRaZF9laGx0SGkyMjVLQXRaY3E4dkFVTUw4VWpINTd6WnRwZDE2S1dWQmkwZDZOU0dMMjdUdENMV2x5WmZxeURoOVJObmxMNDd5SXZiLXFtX3A4aE50ajVFZDFhVTlSUlRtdzFsc1RMb0R5Sm1ZZHZ4TkRyQ3pOWm11Um1ibElaMXk3ZUJZZklkN01DWWV6THJ5?oc=5"
+    summary: "FurMark 2.11 adds full NVIDIA RTX Spark support, new Radeon RX 9050 and Intel Arc Pro GPUs &nbsp;&nbsp; VideoCardz.com"
+    label:                 # signal | noise
+
+  - id: 14
+    headline: "Moonshot Sought Europe’s Nvidia GPUs; 30-50% Premium Floated"
+    source: "FourWeekMBA"
+    published: "2026-11-05T14:08:23+00:00"
+    link: "https://news.google.com/rss/articles/CBMijgFBVV95cUxPTTA5WTVLRFpLM2hIaFBVWDZCclBidkhkcjdDdXEwWldldlRsU1p1emwxNFFnZmowV0JkUnU0SUJKUU5xam5CVUxLMnk5RXJSM0NMQnpoZ2NWcXR1SzN2X1k2amFWSW02RWxTeENtVjR1azExUDM3WXNkc09NcGJCMnFBVlhrYmNQTlIzZUtB?oc=5"
+    summary: "Moonshot Sought Europe’s Nvidia GPUs; 30-50% Premium Floated &nbsp;&nbsp; FourWeekMBA"
+    label:                 # signal | noise
+
+  - id: 15
+    headline: "Nebius Group (NBIS) Projected to Release Earnings on Thursday"
+    source: "MarketBeat"
+    published: "2026-11-05T07:34:23+00:00"
+    link: "https://news.google.com/rss/articles/CBMivwFBVV95cUxPWXRjbUlCZ0hzeVJtSWdnT3J6ZEJkd1hBUjl4cVdvMnRaZjNsTHUwYjRsRGlScGRIZU5NaEcwX0FheV84aGRpUUlERDhuWG1KQTV6ZzJqTFBPdXdKZWZoaUJ1Z29zWnR0VG9SR0NnRUR4RXdHZ3dkQ0lKNnBsZlZnWDBFcTlLaGJmRXhVdGRmaHpJMmMzM1htZkI5WmxJUlRPbWJfRjY5SHphbTVkVHFoWFBfUW41dFlFUEhwLXBoWQ?oc=5"
+    summary: "Nebius Group (NBIS) Projected to Release Earnings on Thursday &nbsp;&nbsp; MarketBeat"
+    label:                 # signal | noise
+
+  - id: 16
+    headline: "AWS proceeds with data center project in Walla Walla, Washington"
+    source: "Data Center Dynamics"
+    published: "2026-11-05T11:28:31+00:00"
+    link: "https://www.datacenterdynamics.com/en/news/aws-proceeds-with-data-center-project-in-walla-walla-washington/"
+    summary: "Details provided about cloud giant's first data center in the state"
+    label:                 # signal | noise
+
+  - id: 17
+    headline: "Microsoft’s $5 Billion AI Spending Shortfall Puts IREN, Nebius Under Spotlight as Satellite Imagery Shows"
+    source: "Benzinga"
+    published: "2026-11-05T10:30:55+00:00"
+    link: "https://news.google.com/rss/articles/CBMijgJBVV95cUxORmVoZ1RCSUhrSmM0akttNlpLMV9sUTNGRlFfYnBFd3VZcGJxYk5uZ2REd3JaZ2tUMmpNR1dLMzlVWGlnclMzTzNWMkVmeXdGRnRxdDRtMGFKY3laMmNqdWdiU0M1dWxvLVFuQ1JNYS1JX3hCOUoxZkppU2VtTnR4d2t1dDd3ZF83bzUzU1NWY3VYZGJES1hybFgxY2w1QWpLSEV5VkF0NWE2M3NhVmJwUHJyS3lLUFVMZnB6MVAyYmdHdGk3Q1YtM0lGNmRqNmZyYk1mbTQ3RkhmeEl1RU9XQ2lfYlF1NG1JaFNtNkVXNFY2clNWc2NiYkxzRi0zTkhGaGxfdzRNNWFRU2w3SkE?oc=5"
+    summary: "Microsoft’s $5 Billion AI Spending Shortfall Puts IREN, Nebius Under Spotlight as Satellite Imagery Shows &nbsp;&nbsp; Benzinga"
+    label:                 # signal | noise
+
+  - id: 18
+    headline: "OpenAI Launches Grid Protectors Program for Flexible Data Center Power Use"
+    source: "HPCwire"
+    published: "2026-11-04T22:55:08+00:00"
+    link: "https://news.google.com/rss/articles/CBMiuAFBVV95cUxQdDZZQjBRajh1d0VSQUt2bmxRTkF2QzFXQ3B4X3prT0QyREEyeHBsdUlWcDBBd2VGeDJ0am1vTEZZeWpLTmpldEJEdnF5Wm5NMkpHWDRueEItcjYwd2hFOXQxblFTYU9tRDJyNklDbWR0UWdadEN3dVNoWWFxV0VDLUl0bDE0b3JSYzZPY3JSeDIxTzJ3U05IVjBfanMwRlMtQkRONHViZzFDb244Mi1ubnItXzgtMFdL?oc=5"
+    summary: "OpenAI Launches Grid Protectors Program for Flexible Data Center Power Use &nbsp;&nbsp; HPCwire"
+    label:                 # signal | noise
+
+  - id: 19
+    headline: "OpenAI is already trying to shape the 2028 election"
+    source: "TechCrunch AI"
+    published: "2026-11-04T21:25:44+00:00"
+    link: "https://techcrunch.com/2026/11/04/openai-is-already-trying-to-shape-the-2028-election/"
+    summary: "OpenAI’s Chris Lehane wants AI to define the 2028 election, proposing a new social contract that could benefit Americans while also advancing the AI giant’s own business interests."
+    label:                 # signal | noise
+
+  - id: 20
+    headline: "Supermicro Launches KV Cache Solution with IBM and NVIDIA Demonstrating Significant Inference Performance Benefits"
+    source: "Eastern Progress"
+    published: "2026-11-05T14:05:00+00:00"
+    link: "https://news.google.com/rss/articles/CBMiogJBVV95cUxPcXBCX0diMnJLLUE4WG92ZXk3eERPYi05Wi14NzNzU2lkOVAzOVJ3Z3FTTTJQcU1jbkZ2YW5JWkhsX1p4cjN0WG9hakpPb3gyeVBIRVlvTktlOFgzcEF5YTNDZkstZ0JjcUpMODNZY3NUMnV6MU53NjVUM1NNRTFNNFF1MXhydVN5cmVpak9iaHRDOHBTSzNBUlk0cEtLOW9JRzRYcVN0Z09pX2NHaEllRWd2bDg3NVVZZVo3TzhWV3dsQ0s1T0hoZnFYTzV5TnJSYVJaNzIxanNMT3VySEVCQmlXOExaLUFzWTNPaXVkUFZLY3hNWElmZUNDdGxXR0VBVDNZUEJEd0NLTnhMR2xfLUtoV0dVNDJKaXFSMWdwUld6dw?oc=5"
+    summary: "Supermicro Launches KV Cache Solution with IBM and NVIDIA Demonstrating Significant Inference Performance Benefits &nbsp;&nbsp; Eastern Progress"
+    label:                 # signal | noise
