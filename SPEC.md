@@ -21,6 +21,7 @@ Every morning it:
 **Top 3 developments.** For each one:
 - **What happened:** one or two sentences.
 - **Why it matters to [company]:** two sentences: the specific part of the company's business affected and the mechanism, then what to watch next. No generic advice. (The parts of the business come from the profile; for Crusoe: power, manufacturing, data centers, cloud.)
+- **Business impact** (structured, right after Why it matters): **Direction** (Opportunity or Risk), **Channel** (one of: Revenue & pricing; Costs & margins; Financing & cost of capital; Customers & pipeline; Siting & timeline), **Size** (only a figure stated in the source text or the profile and verified by the quote check; otherwise exactly "unsized"; never estimated or invented), and **Consider** (one specific option or question for the company tied to this story; no generic advice).
 - **Confidence:** Confirmed (company announcement, filing, or regulator) or Reported (press citing sources).
 - **Source:** link to the primary article.
 - **Evidence:** a short supporting quote (4–24 words) from the article, in small print, with whether it came from the article text or the RSS summary. Checked in code (section 6).
@@ -29,9 +30,9 @@ Every morning it:
 
 **Noise we ignored:** 3–5 items it skipped, each with a one-line reason (e.g., "opinion piece, no new facts," "duplicate of item 2," "not relevant to the company's markets").
 
-**This week's themes (Fridays only, or on request):** 3 themes from the week's verified briefs, each citing the daily briefs it draws on, with a supporting quote. Verified under the same rules (section 6).
+**This week's themes and Opportunities (Fridays only, or on request):** 3 themes from the week's verified briefs, each citing the daily briefs it draws on, with a supporting quote; and an Opportunities list (potential customers, distressed assets or power contracts, partnerships, pricing signals), each citing one daily brief with a supporting quote. Verified under the same rules (section 6).
 
-**Footer:** number of articles scanned, number kept, and any sources that failed to load.
+**Footer:** number of articles scanned, number kept, any sources that failed to load, and how many of the top stories had full article text versus summary only.
 
 ## 3. Watchlist
 
@@ -74,9 +75,9 @@ Keep the shared list in `sources.yaml`. Confirm each feed URL works before relyi
 
 A single Python script that runs once a day on GitHub Actions:
 
-1. **Fetch:** read every feed in `sources.yaml`; keep items from the last 24–48 hours.
+1. **Fetch:** read every feed in `sources.yaml`; keep items from the last 24–48 hours. Files are named by the America/Denver date, not UTC.
 2. **Deduplicate:** merge items covering the same story (same link, or very similar titles).
-3. **Filter:** keep items that mention a watchlist term.
+3. **Filter:** keep items that mention a watchlist term. Then decode Google News redirect links to the publisher's URL (rate-limited, with a fallback to the original link) and merge duplicates that now share a URL; both URLs stay in the collected set.
 4. **Rank:** send the filtered list to Claude with a scoring prompt (relevance to the target company, novelty, source quality). Each item gets a score from 1 to 5 and a one-line reason.
 5. **Fetch full text:** for the strongest stories, fetch the full article, obeying robots.txt and skipping paywalled, blocked, or near-empty pages and Google News redirects; fall back to the RSS summary and record why.
 6. **Write:** send the top-ranked items (full text where available) to Claude with the brief-writing prompt and the exact format above. Each "What happened" comes with a short verbatim supporting quote.
@@ -96,7 +97,8 @@ A single Python script that runs once a day on GitHub Actions:
 
 - **Source check (code):** every link must come from the collected set. Unmatched links are removed.
 - **Quote check (code):** each top development's supporting quote must appear word for word (whitespace, quote styles, and dash styles aside) in the fetched article text, or in the RSS title and summary when the article is unavailable. A missing, malformed, or non-matching quote removes the item; a "Confirmed" label backed only by the RSS summary is downgraded to Reported. Every removal or downgrade is logged.
-- **Weekly check (code):** every theme must cite at least two daily briefs that exist, and its quote must appear in one of them; failing themes are dropped.
+- **Business-impact check (code):** Direction and Channel must be allowed values (otherwise the item is removed). Size must be copied word for word from the profile or from a quote that passes the quote check; anything else becomes exactly "unsized" and is logged.
+- **Weekly check (code):** every theme must cite at least two daily briefs that exist, and its quote must appear in one of them; every opportunity must cite one daily brief that exists, quote it, and contain no figure the brief lacks. Failing items are dropped.
 - **Claim check (prompt rule):** the writing prompt may only use facts present in the supplied article text, and must label anything uncertain as Reported.
 - **Unit tests (pytest):** use saved sample feeds as test data; confirm deduplication, filtering, and the source check behave correctly, including when a feed is down or empty, and when the brief contains a deliberately fake link or a fabricated quote.
 - **Eval set:** 20 real headlines labeled by hand as signal or noise for the target company (`evals/labeled_headlines.yaml`). Run the ranking step against them and record how often it agrees. Re-run after every prompt change.
