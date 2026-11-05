@@ -17,7 +17,7 @@ def stub(reply):
 
 
 def top(i):
-    return {"what_happened": f"W{i}", "why_it_matters": f"Y{i}", "area": "power",
+    return {"what_happened": f"W{i}", "quote": f"quote number {i} here", "why_it_matters": f"Y{i}", "area": "power",
             "confidence": "Reported", "link": f"https://x.com/{i}"}
 
 
@@ -102,3 +102,28 @@ def test_writer_prompt_schema_and_title_follow_the_selected_profile(tmp_path, mo
                          {"scanned": 1, "kept": 1}, [])
     assert md.startswith("# AI Infrastructure Intelligence Brief — prepared for Acme Power")
     assert "Why it matters to Acme Power:" in md and "Crusoe" not in md
+
+
+def test_prompt_shows_full_article_text_when_fetched_and_rss_summary_otherwise():
+    from src.write import TEXT_CHARS, build_prompt
+    prompt = build_prompt(RANKED, {"https://x.com/0": "FULL TEXT " * 1000})
+    assert f"text (full article, first {TEXT_CHARS} chars): FULL TEXT" in prompt
+    assert prompt.count("full article") == 1                 # only the fetched story
+    assert "text (RSS summary only): text" in prompt          # the others fall back
+    assert "FULL TEXT " * 1000 not in prompt                  # truncated, not dumped whole
+
+
+def test_writer_prompt_requires_an_exact_quote_and_schema_has_the_field():
+    from src.write import build_schema, build_system_prompt
+    assert "copied EXACTLY" in build_system_prompt() and "4 and 24 words" in build_system_prompt()
+    item = build_schema()["properties"]["top"]["items"]
+    assert "quote" in item["properties"] and "quote" in item["required"]
+
+
+def test_evidence_line_renders_small_with_its_source():
+    from src.write import evidence_line
+    base = {"quote": "a short quote here"}
+    assert evidence_line({**base, "evidence_source": "article"}) == \
+        '- <sub>**Evidence:** "a short quote here" (article text)</sub>'
+    assert evidence_line({**base, "evidence_source": "summary"}).endswith('(RSS summary)</sub>')
+    assert evidence_line(base) == '- <sub>**Evidence:** "a short quote here"</sub>'

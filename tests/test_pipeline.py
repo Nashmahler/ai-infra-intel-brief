@@ -34,7 +34,8 @@ def test_fake_link_from_the_writer_never_reaches_the_published_brief():
         {"scores": [{"id": 0, "score": 5, "story": 0, "reason": "major"}]}))
     real = ranked[0]["link"]
 
-    top = lambda link: {"what_happened": "W", "why_it_matters": "Y", "area": "power",
+    top = lambda link: {"what_happened": "W", "quote": "announced a power purchase agreement",
+                        "why_it_matters": "Y", "area": "power",
                         "confidence": "Reported", "link": link}
     brief = write_brief(ranked, stub({"top": [top(real), top("https://fake.example/invented")],
                                       "watchlist": [], "noise": []}))
@@ -52,3 +53,17 @@ def test_all_feeds_down_produces_the_no_brief_file():
     md, _, verified = build_final("2026-11-04", raw, None)
     assert not verified and "No verified brief today" in md
     assert "sources that failed to load: A, B" in md
+
+
+def test_fabricated_quote_from_the_writer_fails_closed_end_to_end():
+    fetcher = lambda feed, now: entries_to_items(feedparser.parse(SAMPLE), feed["name"], now)
+    raw = collect([{"name": "Sample", "url": ""}], ["CoreWeave"], NOW, fetcher)
+    ranked = rank_items(raw["items"], stub(
+        {"scores": [{"id": 0, "score": 5, "story": 0, "reason": "major"}]}))
+    invented = {"what_happened": "W", "quote": "CoreWeave will build a campus on the moon",
+                "why_it_matters": "Y", "area": "power", "confidence": "Reported",
+                "link": ranked[0]["link"]}                      # a REAL link, an invented quote
+    brief = write_brief(ranked, stub({"top": [invented], "watchlist": [], "noise": []}))
+    md, log, verified = build_final("2026-11-04", raw, brief)
+    assert not verified and "No verified brief today" in md
+    assert log[0]["reason"] == "quote not found in the source text"
