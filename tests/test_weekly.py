@@ -7,8 +7,9 @@ import pytest
 
 import src.config as config
 import src.weekly as weekly
-from src.weekly import (add_section, build_system_prompt, collect_briefs, plain_text,
-                        render_section, verify_themes)
+from src.weekly import (OPPORTUNITY_KINDS, SCHEMA, add_section, build_system_prompt, collect_briefs,
+                        plain_text, render_opportunities, render_section, verify_opportunities,
+                        verify_themes)
 
 FRIDAY = "2026-11-06"
 
@@ -170,7 +171,7 @@ def test_brief_is_untouched_when_no_theme_survives(folder, monkeypatch, capsys):
     before = (folder / f"{FRIDAY}.md").read_text()
     run_main(monkeypatch, {"themes": [theme(quote="entirely fabricated sentence about nothing real")]}, FRIDAY)
     assert (folder / f"{FRIDAY}.md").read_text() == before
-    assert "No theme survived verification" in capsys.readouterr().out
+    assert "Nothing survived verification" in capsys.readouterr().out
 
 
 def test_skips_when_todays_brief_failed_or_the_week_is_too_thin(folder, monkeypatch, capsys):
@@ -187,3 +188,111 @@ def test_skips_when_todays_brief_failed_or_the_week_is_too_thin(folder, monkeypa
 def test_missing_api_key_is_an_error_not_a_silent_skip(folder, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY")
     assert run_main(monkeypatch, None, FRIDAY) == 1
+
+
+# -------------------------------------------------------------- opportunities
+
+OPP_BRIEFS = {"2026-11-04": "Nebius reportedly secured a $3.5 billion credit line ahead of earnings.",
+              "2026-11-05": "Oracle reportedly dropped a deal with Tencent, freeing up GPU capacity."}
+
+
+def opp(**kw):
+    base = {"category": "Potential customer", "summary": "Tencent may need a new GPU supplier after Oracle reportedly walked away.",
+            "day": "2026-11-05", "quote": "Oracle reportedly dropped a deal with Tencent"}
+    return {**base, **kw}
+
+
+def test_an_opportunity_with_a_cited_brief_and_a_real_quote_survives():
+    clean, log = verify_opportunities([opp()], OPP_BRIEFS)
+    assert len(clean) == 1 and log == []
+
+
+def test_every_category_is_accepted_and_others_are_not():
+    assert OPPORTUNITY_KINDS == ["Potential customer", "Distressed asset or power contract",
+                                 "Partnership", "Pricing signal"]
+    assert SCHEMA["properties"]["opportunities"]["items"]["properties"]["category"]["enum"] == OPPORTUNITY_KINDS
+    for kind in OPPORTUNITY_KINDS:
+        assert verify_opportunities([opp(category=kind)], OPP_BRIEFS)[0]
+    clean, log = verify_opportunities([opp(category="Acquisition")], OPP_BRIEFS)
+    assert clean == [] and "invalid category" in log[0]["reason"]
+
+
+def test_an_opportunity_citing_a_brief_that_was_not_read_is_removed():
+    clean, log = verify_opportunities([opp(day="2026-11-09")], OPP_BRIEFS)
+    assert clean == [] and log[0]["reason"] == "cites a daily brief that was not read"
+
+
+def test_a_fabricated_quote_removes_the_opportunity_and_is_logged():
+    clean, log = verify_opportunities([opp(quote="Tencent signed an exclusive GPU contract with us")], OPP_BRIEFS)
+    assert clean == [] and log[0]["reason"] == "quote not found in the source text"
+    assert log[0]["quote"].startswith("Tencent signed") and log[0]["kind"] == "opportunity"
+
+
+def test_the_quote_must_come_from_the_brief_it_cites_not_another_day():
+    clean, _ = verify_opportunities([opp(day="2026-11-04")], OPP_BRIEFS)       # quote is from 11-05's brief
+    assert clean == []
+
+
+def test_a_figure_the_cited_brief_does_not_contain_removes_the_opportunity():
+    invented = opp(summary="A $5 billion refinancing could be available to Crusoe.")
+    clean, log = verify_opportunities([invented], OPP_BRIEFS)
+    assert clean == [] and log[0]["reason"] == "figure not in the cited brief: 5"
+
+
+def test_a_figure_from_the_cited_brief_is_fine_but_not_one_from_another_days_brief():
+    good = opp(day="2026-11-04", quote="Nebius reportedly secured a $3.5 billion credit line",
+               category="Pricing signal", summary="Nebius reportedly raised $3.5 billion, a financing-cost signal.")
+    assert verify_opportunities([good], OPP_BRIEFS)[0]
+    borrowed = opp(summary="Tencent may need capacity worth $3.5 billion.")       # 3.5 is in the OTHER brief
+    assert verify_opportunities([borrowed], OPP_BRIEFS)[0] == []
+
+
+def test_missing_summary_and_the_cap_of_five():
+    assert verify_opportunities([opp(summary="  ")], OPP_BRIEFS)[0] == []
+    assert len(verify_opportunities([opp()] * 8, OPP_BRIEFS)[0]) == 5
+
+
+def test_opportunities_render_with_a_cited_brief_link_and_an_evidence_line():
+    section = render_opportunities([opp()])
+    assert section.startswith("## Opportunities")
+    assert ("- **Potential customer:** Tencent may need a new GPU supplier after Oracle reportedly walked away. "
+            "— [Nov 5](2026-11-05.md)") in section
+    assert '<sub>**Evidence:** "Oracle reportedly dropped a deal with Tencent"</sub>' in section
+
+
+def test_both_weekly_sections_sit_before_the_footer_and_are_replaced_together():
+    both = render_section([theme()]) + "\n" + render_opportunities([opp(summary="First version.")])
+    once = add_section(brief_md(FRIDAY), both)
+    assert once.index("## This week's themes") < once.index("## Opportunities") < once.index("\n---\n")
+    assert "Articles scanned" in once.split("\n---\n")[-1]
+    twice = add_section(once, render_opportunities([opp(summary="Second version.")]))
+    assert twice.count("## Opportunities") == 1 and "Second version." in twice and "First version." not in twice
+    assert "## This week's themes" not in twice                                  # replaced as a pair, not left stale
+
+
+def test_prompt_lists_the_categories_and_forbids_invented_figures():
+    p = build_system_prompt()
+    assert all(kind in p for kind in OPPORTUNITY_KINDS)
+    assert "never estimate" in p and "ONLY if it appears in that brief" in p.replace("\n", " ").replace("  ", " ")
+
+
+def test_friday_adds_themes_and_opportunities_and_logs_the_rejects(folder, monkeypatch):
+    reply = {"themes": [theme()],
+             "opportunities": [opp(day="2026-11-05", quote="Anti-data center ballot measures are reportedly on track to pass",
+                                   summary="Local backlash could open stranded sites for sale."),
+                               opp(quote="a quote nobody ever wrote down anywhere")]}
+    assert run_main(monkeypatch, reply, FRIDAY) == 0
+    text = (folder / f"{FRIDAY}.md").read_text()
+    assert text.count("## This week's themes") == 1 and text.count("## Opportunities") == 1
+    assert "Local backlash could open stranded sites for sale." in text
+    saved = json.loads((config.data_dir() / f"{FRIDAY}_weekly.json").read_text())
+    assert len(saved["opportunities"]) == 1 and saved["log"][0]["kind"] == "opportunity"
+
+
+def test_opportunities_alone_are_published_when_no_theme_survives(folder, monkeypatch):
+    reply = {"themes": [theme(quote="a made up sentence that is not in any brief at all")],
+             "opportunities": [opp(day="2026-11-05", quote="Anti-data center ballot measures are reportedly on track to pass",
+                                   summary="Backlash could free up sites.")]}
+    run_main(monkeypatch, reply, FRIDAY)
+    text = (folder / f"{FRIDAY}.md").read_text()
+    assert "## Opportunities" in text and "## This week's themes" not in text
