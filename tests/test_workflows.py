@@ -57,7 +57,7 @@ def test_workflows_pass_the_target_profile_setting_through():
 def test_pipeline_steps_run_in_the_intended_order():
     steps = [s.get("run", "") for s in load("daily-brief.yml")["jobs"]["brief"]["steps"]]
     order = [next(i for i, r in enumerate(steps) if f"src.{m}" in r)
-             for m in ("fetch", "rank", "fulltext", "write", "verify", "weekly", "index")]
+             for m in ("fetch", "rank", "decode", "fulltext", "write", "verify", "weekly", "index")]
     assert order == sorted(order)
     commit = next(i for i, r in enumerate(steps) if "git commit" in r)
     assert commit > order[-1]                                   # commit comes after everything it commits
@@ -82,3 +82,9 @@ def test_manual_run_has_a_commit_switch_that_defaults_to_on_and_a_brief_printing
     assert show["continue-on-error"] is True and "GITHUB_STEP_SUMMARY" in show["run"]
     names = [s.get("name", "") for s in steps]
     assert names.index(show["name"]) < next(i for i, n in enumerate(names) if n.startswith("Commit"))
+
+
+def test_google_decoding_cannot_block_the_brief():
+    steps = load("daily-brief.yml")["jobs"]["brief"]["steps"]
+    decode = next(s for s in steps if "src.decode" in s.get("run", ""))
+    assert decode["continue-on-error"] is True and "top 60" in decode["name"]
