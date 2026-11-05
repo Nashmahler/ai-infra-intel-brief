@@ -1,6 +1,6 @@
 # Profile: the target company this brief is prepared for.
 # Select it with the TARGET_PROFILE environment variable (default: crusoe).
-# To add a company, copy profiles/_template.yaml (see README, "Adding a new company").
+# To add a company, copy profiles/_template.yaml (see docs/setup.md, "Adding a new company").
 #
 # The facts below were supplied by the repo owner. They are NOT from collected
 # articles, so the writer may use them only as context for "why it matters",

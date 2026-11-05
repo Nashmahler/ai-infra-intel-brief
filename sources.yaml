@@ -36,4 +36,4 @@ google_news_terms:
   - "Texas data center policy"
   - "data center ballot measure"
 
-# SEC EDGAR filings are not in v1 (they need a contact User-Agent); see README, "What's next".
+# SEC EDGAR filings are not in v1 (they need a contact User-Agent); see docs/architecture.md, "What's next".
