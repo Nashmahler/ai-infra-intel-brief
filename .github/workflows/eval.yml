@@ -6,6 +6,11 @@ name: Ranker eval
 
 on:
   workflow_dispatch:       # Actions -> Ranker eval -> Run workflow
+    inputs:
+      runs:
+        description: "How many times to rank the 20 headlines (the ranker varies run to run; 3 is a fairer number)"
+        type: string
+        default: "1"
 
 permissions:
   contents: read
@@ -29,4 +34,4 @@ jobs:
       - name: Install
         run: pip install -r requirements.txt
       - name: Run the eval
-        run: python -m src.evaluate
+        run: python -m src.evaluate --runs "${{ inputs.runs || '1' }}"
