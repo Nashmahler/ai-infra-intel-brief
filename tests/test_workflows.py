@@ -88,3 +88,22 @@ def test_google_decoding_cannot_block_the_brief():
     steps = load("daily-brief.yml")["jobs"]["brief"]["steps"]
     decode = next(s for s in steps if "src.decode" in s.get("run", ""))
     assert decode["continue-on-error"] is True and "top 60" in decode["name"]
+
+
+def test_the_gate_is_a_python_step_placed_after_checkout_and_install_and_gating_everything_after_it():
+    steps = load("daily-brief.yml")["jobs"]["brief"]["steps"]
+    names = [s.get("name") or s.get("uses", "") for s in steps]
+    gate = next(i for i, s in enumerate(steps) if s.get("id") == "gate")
+    assert steps[gate]["run"] == "python -m src.gate"
+    assert [n for n in names[:gate]] == ["actions/checkout@v4", "actions/setup-python@v5", "Install"]
+    for before in steps[:gate]:
+        assert "if" not in before                                   # the gate needs these to have run
+    for after in steps[gate + 1:]:
+        assert "steps.gate.outputs.go == 'true'" in after["if"], after.get("name")
+
+
+def test_the_old_shell_gate_that_only_allowed_the_6am_hour_is_gone_and_both_crons_remain():
+    text = (ROOT / ".github/workflows/daily-brief.yml").read_text()
+    assert "date +%H" not in text and '!= "06"' not in text
+    assert {c["cron"] for c in triggers(load("daily-brief.yml"))["schedule"]} == {"0 12 * * *", "0 13 * * *"}
+    assert "6:00 to 11:59 a.m." in text

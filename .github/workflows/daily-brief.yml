@@ -1,4 +1,4 @@
-# Daily brief, 6:00 a.m. Mountain time.
+# Daily brief, built any time from 6:00 to 11:59 a.m. Mountain time.
 # fetch -> rank -> decode Google links (top 60) -> full text -> write -> verify ->
 # (Fridays) weekly themes -> index,
 # then commit briefs/<profile>/YYYY-MM-DD.md, the briefs index, and the README's
@@ -10,8 +10,11 @@ name: Daily brief
 on:
   schedule:
     # GitHub cron is UTC and ignores daylight saving. 6am Mountain is 13:00 UTC
-    # in winter (MST) and 12:00 UTC in summer (MDT), so fire at both times and
-    # let the "gate" step below let through only the one that is 6am in Denver.
+    # in winter (MST) and 12:00 UTC in summer (MDT), so fire at both times. GitHub
+    # can also start scheduled runs late, so the "gate" step (src/gate.py) lets a
+    # scheduled run through any time from 6:00 to 11:59 a.m. Denver, but only if
+    # today's brief is not already on main. That makes the second cron a safe retry:
+    # whichever starts first builds the brief, the other finds it and stops.
     - cron: "0 12 * * *"
     - cron: "0 13 * * *"
   workflow_dispatch:
@@ -45,25 +48,18 @@ jobs:
       # TARGET_PROFILE to change it; unset means the default profile (crusoe).
       TARGET_PROFILE: ${{ vars.TARGET_PROFILE }}
     steps:
-      - name: Gate (scheduled runs only proceed at 6am Mountain)
-        id: gate
-        run: |
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(TZ=America/Denver date +%H)" != "06" ]; then
-            echo "Not 6am in Denver; skipping this trigger."
-            echo "go=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "go=true" >> "$GITHUB_OUTPUT"
-          fi
+      # Checkout and install come first because the gate looks for today's brief in
+      # the checked-out repo (a scheduled run always checks out main).
       - uses: actions/checkout@v4
-        if: steps.gate.outputs.go == 'true'
       - uses: actions/setup-python@v5
-        if: steps.gate.outputs.go == 'true'
         with:
           python-version: "3.12"
           cache: pip
       - name: Install
-        if: steps.gate.outputs.go == 'true'
         run: pip install -r requirements.txt
+      - name: Gate (scheduled runs go from 6:00 to 11:59 a.m. Denver, unless today's brief exists)
+        id: gate
+        run: python -m src.gate
       - name: Test
         if: steps.gate.outputs.go == 'true'
         run: python -m pytest -q
