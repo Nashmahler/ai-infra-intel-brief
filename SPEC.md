@@ -113,7 +113,7 @@ A single Python script that runs once a day on GitHub Actions:
 4. Write the brief-writing step using the exact format in this spec. Facts may only come from the supplied articles.
 5. Write the source-verification check in code: remove any brief item whose link isn't in the collected set, and log removals. Add tests, including a deliberately fake link.
 6. Add an eval script that runs the ranking step against `evals/labeled_headlines.yaml` and reports agreement. (Nash writes the 20 labels.)
-7. Add a GitHub Actions workflow that runs daily at 6:00 a.m. Mountain time, can also be run manually, and commits the brief to `briefs/<profile>/YYYY-MM-DD.md`.
+7. Add a GitHub Actions workflow that runs daily from 6:00 a.m. Mountain time (any scheduled start from 6:00 to 11:59 a.m. Denver counts, as long as today's brief is not already on main, because GitHub can start scheduled runs late), can also be run manually, and commits the brief to `briefs/<profile>/YYYY-MM-DD.md`.
 8. Write a README: what it does, how it works, how verification works, known limitations.
 
 Keep the code simple and well-commented; it will be walked through with a hiring team.

@@ -12,7 +12,7 @@ and what to weigh. **[Crusoe](https://www.crusoe.ai) is the first demo
 profile** (and the default); [adding another company](#adding-a-new-company)
 takes one config file and no code changes.
 
-Every morning (6:00 a.m. Mountain) it collects news from free feeds, ranks it
+Every morning (from 6:00 a.m. Mountain) it collects news from free feeds, ranks it
 with Claude, writes a short brief, **checks in code that every link in the
 brief points to an article it actually collected**, and commits the result to
 [`briefs/<profile>/`](briefs/). If it can't verify anything, it publishes a "no verified
@@ -229,9 +229,21 @@ python -m src.index            # refresh the briefs index and the Latest brief l
 On GitHub: **Actions → Daily brief → Run workflow** for a manual run (tick
 **Also add this week's themes** to run the weekly synthesis on a day that isn't
 a Friday; untick **Commit the brief to the repo** for a test run that leaves
-nothing behind. The finished brief is printed into the run's log and summary). It also runs on schedule. GitHub's cron is UTC and ignores daylight saving, so the
-workflow fires at both 12:00 and 13:00 UTC and a "gate" step lets through only
-the run that lands on 6:00 a.m. in Denver. The **Check feeds** workflow tests
+nothing behind. The finished brief is printed into the run's log and summary). It also runs on schedule.
+
+**How the schedule works.** GitHub's cron is UTC and ignores daylight saving, so
+the workflow fires at both 12:00 and 13:00 UTC (6 a.m. Mountain in summer and in
+winter respectively). GitHub can also start a scheduled run hours late, so a
+"gate" step (`src/gate.py`) lets a scheduled run through **any time from 6:00 to
+11:59 a.m. Denver, but only if `briefs/<profile>/<today>.md` isn't already on
+`main`** (the date is the Denver date). That makes the second cron a safe retry:
+whichever starts first builds the brief and commits it, and the other finds the
+file and stops. Manual and push runs always proceed. The run page prints the
+gate's reason ("outside 06:00-11:59", "today's brief already exists", ...).
+A "No verified brief today" note counts as today's file, so it is not retried
+by a later trigger, and if GitHub starts no scheduled run before noon Denver there is no brief that day.
+
+The **Check feeds** workflow tests
 all feed URLs from GitHub's runners; the check passes if at least half work and
 prints which ones don't.
 
