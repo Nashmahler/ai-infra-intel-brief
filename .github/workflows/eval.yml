@@ -1,0 +1,36 @@
+# Checks the ranker against the hand-labeled headlines (SPEC.md section 6).
+# Runs the real ranking step on evals/labeled_headlines.yaml and reports agreement,
+# false positives and false negatives in the log and on the run page. Re-run it
+# after every change to the ranking prompt. Costs a few cents (one ranking call).
+name: Ranker eval
+
+on:
+  workflow_dispatch:
+  push:
+    # Test run while this is being developed; remove once on main.
+    branches: [evals]
+    paths: [evals/labeled_headlines.yaml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TARGET_PROFILE: ${{ vars.TARGET_PROFILE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install -r requirements.txt
+      - name: Run the eval
+        run: python -m src.evaluate
