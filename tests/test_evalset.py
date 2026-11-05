@@ -1,4 +1,5 @@
 """Eval-set sampler: stratified by ranker score, shuffled, no scores in the file."""
+import hashlib
 import json
 
 import pytest
@@ -6,15 +7,17 @@ import yaml
 
 import src.config as config
 import src.evalset as evalset
-from src.evalset import BANDS, has_labels, pick, render
+from src.evalset import BANDS, exclude_overlap, has_labels, pick, render, too_similar
 
 WORDS = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet",
          "kilo", "lima", "mike", "november", "oscar", "papa", "quebec", "romeo", "sierra", "tango"]
 
 
 def item(n, score, **kw):
-    # Distinct, unrelated titles so the near-duplicate filter never fires by accident.
-    title = f"{WORDS[n % 20]} {WORDS[(n * 7 + 3) % 20]} {n * 9973} announces unrelated {WORDS[(n * 3) % 20]} plan {n}"
+    # Unique, unrelated vocabulary per item (hex words), so neither the near-duplicate filter nor the
+    # held-out "same story" exclusion ever fires by accident.
+    h = hashlib.md5(str(n).encode()).hexdigest()
+    title = f"{h[0:6]} {h[6:12]} {h[12:18]} {h[18:24]} {h[24:30]}"
     return {"title": title, "link": f"https://pub.com/{n}", "source": "Feed", "publisher": f"Pub{n}",
             "published": "2026-11-05T12:00:00+00:00", "summary": f"Summary {n}.", "score": score,
             "story": n, "is_lead": True, **kw}
@@ -142,3 +145,101 @@ def test_main_never_overwrites_labels_without_force(repo, capsys):
 def test_main_without_scores_explains_and_fails(repo, capsys):
     (config.data_dir() / "2026-11-05_scores.json").unlink()
     assert evalset.main() == 1 and "run fetch and rank first" in capsys.readouterr().out
+
+
+# ------------------------------------------------------------- the held-out set
+
+def reference(items):
+    return [{"headline": i["title"], "link": i["link"]} for i in items]
+
+
+def test_an_item_with_the_same_link_or_a_near_identical_title_is_excluded():
+    items = pool()
+    ref = reference(items[:3])
+    same_link = {**item(500, 1), "link": items[0]["link"]}
+    renamed = {**item(501, 1), "title": items[1]["title"] + " - Reuters"}
+    kept = exclude_overlap(items[3:] + [same_link, renamed], ref)
+    assert same_link not in kept and renamed not in kept and len(kept) == len(items) - 3
+
+
+def test_loosely_similar_coverage_of_the_same_event_is_excluded_but_unrelated_news_is_not():
+    a = "CoreWeave bonds hit new lows as Texas data centers come under scrutiny"
+    assert too_similar(a, "CoreWeave bonds tumble to new lows after Texas elected a data center foe")
+    assert too_similar(a, "Texas data centers in crosshairs as CoreWeave bonds hit lows")
+    assert not too_similar(a, "Nvidia shipped CUDA 13.5 with Vera Rubin support for production")
+    assert not too_similar(a, "Spark Liquid modular data center debuts in Brighton Colorado")
+
+
+def test_the_whole_story_group_of_an_excluded_headline_goes_with_it():
+    items = pool()
+    ref = reference(items[:1])
+    story = items[0]["story"]
+    matched = {**item(601, 1), "title": items[0]["title"] + " - AP", "story": story}   # today's copy: excluded by title
+    sibling = {**item(600, 1), "story": story}                                          # same story, different words
+    other = item(602, 1, story=9999)
+    kept = exclude_overlap(items[1:] + [matched, sibling, other], ref)
+    assert matched not in kept and sibling not in kept       # the whole story group goes
+    assert other in kept                                      # unrelated stories stay
+
+
+def test_nothing_is_excluded_when_there_is_nothing_to_exclude_against():
+    items = pool()
+    assert exclude_overlap(items, []) == items
+
+
+def test_the_heldout_file_explains_it_must_not_be_used_to_tune_the_prompt():
+    text = render(pick(pool())[0], "Crusoe", "crusoe", heldout=True)
+    assert text.startswith("# HELD-OUT set") and "do NOT change the prompt" in text
+    assert "signal  = something Crusoe's strategy team would want to know" in text      # the label note is still there
+    assert "# HELD-OUT" not in render(pick(pool())[0], "Crusoe", "crusoe")             # the main set does not carry it
+
+
+@pytest.fixture
+def two_sets(repo, monkeypatch):
+    """The main labeled set (from the first 20 picks) already exists; build the held-out set beside it."""
+    tmp = repo.parent.parent
+    main_items = pool(40, 40, 40)
+    (config.data_dir() / "2026-11-05_scores.json").write_text(json.dumps({"items": main_items}))
+    first, _ = pick(main_items)
+    labeled = yaml.safe_load(render(first, "Crusoe", "crusoe"))
+    for h in labeled["headlines"]:
+        h["label"] = "signal"
+    repo.parent.mkdir(exist_ok=True)
+    repo.write_text(yaml.safe_dump(labeled))
+    monkeypatch.setattr("sys.argv", ["evalset", "2026-11-05", "--out", "evals/heldout_headlines.yaml",
+                                     "--exclude", "evals/labeled_headlines.yaml"])
+    return repo, tmp / "evals" / "heldout_headlines.yaml", first
+
+
+def test_main_builds_a_heldout_set_that_shares_nothing_with_the_main_set(two_sets, capsys):
+    labeled_file, heldout_file, first = two_sets
+    before = labeled_file.read_text()
+    assert evalset.main() == 0
+    out = capsys.readouterr().out
+    held = yaml.safe_load(heldout_file.read_text())["headlines"]
+    assert len(held) == 20 and all(h["label"] is None for h in held)
+    first_links = {i["link"] for i in first}
+    first_stories = {i["story"] for i in first}
+    chosen = {h["link"] for h in held}
+    assert not chosen & first_links
+    by_link = {i["link"]: i for i in pool(40, 40, 40)}
+    assert not {by_link[l]["story"] for l in chosen} & first_stories
+    assert not any(too_similar(h["headline"], f["title"]) for h in held for f in first)
+    assert labeled_file.read_text() == before                                          # the main set is untouched
+    assert "excluded" in out and "7 / 7 / 6" in out                                    # same score mix, and it says so
+
+
+def test_the_heldout_file_has_the_heldout_note_and_no_scores(two_sets):
+    _, heldout_file, _ = two_sets
+    evalset.main()
+    text = heldout_file.read_text()
+    assert text.startswith("# HELD-OUT set") and "score:" not in text.lower()
+
+
+def test_the_heldout_run_never_overwrites_its_own_labels(two_sets, capsys):
+    _, heldout_file, _ = two_sets
+    evalset.main()
+    filled = heldout_file.read_text().replace("label:                 # signal | noise", "label: noise", 1)
+    heldout_file.write_text(filled)
+    assert evalset.main() == 1 and heldout_file.read_text() == filled
+    assert "not overwriting" in capsys.readouterr().out

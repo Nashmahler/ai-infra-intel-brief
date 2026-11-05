@@ -116,9 +116,10 @@ def test_eval_workflows_are_manual_only_and_keep_the_key_in_secrets():
         assert "secrets.ANTHROPIC_API_KEY" in text and "sk-ant" not in text
     assert load("eval.yml")["permissions"] == {"contents": "read"}      # the eval never writes to the repo
     steps = load("eval.yml")["jobs"]["eval"]["steps"]
-    assert steps[-1]["run"].startswith("python -m src.evaluate --runs ")
-    runs = triggers(load("eval.yml"))["workflow_dispatch"]["inputs"]["runs"]
-    assert runs["default"] == "1"                                       # one run unless asked for more
+    assert steps[-1]["run"].startswith("python -m src.evaluate --file ") and "--runs " in steps[-1]["run"]
+    inputs = triggers(load("eval.yml"))["workflow_dispatch"]["inputs"]
+    assert inputs["runs"]["default"] == "1"                             # one run unless asked for more
+    assert inputs["file"]["default"] == "evals/labeled_headlines.yaml"  # the main set unless told otherwise
 
 
 def test_the_sample_workflow_ranks_before_sampling_and_only_commits_when_asked():
@@ -127,4 +128,13 @@ def test_the_sample_workflow_ranks_before_sampling_and_only_commits_when_asked()
     order = [next(i for i, r in enumerate(runs) if f"src.{m}" in r) for m in ("fetch", "rank", "evalset")]
     assert order == sorted(order)
     commit = next(s for s in steps if "Commit" in s.get("name", ""))
-    assert commit["if"] == "inputs.commit == true" and "git add evals/labeled_headlines.yaml" in commit["run"]
+    assert commit["if"] == "inputs.commit == true" and "git add evals/" in commit["run"]
+
+
+def test_the_sample_workflow_can_build_the_heldout_set_that_excludes_the_main_set():
+    wf = load("eval-sample.yml")
+    inputs = triggers(wf)["workflow_dispatch"]["inputs"]
+    assert inputs["heldout"]["type"] == "boolean" and inputs["heldout"]["default"] is False
+    step = next(s for s in wf["jobs"]["sample"]["steps"] if "src.evalset" in s.get("run", ""))
+    assert "--out evals/heldout_headlines.yaml --exclude evals/labeled_headlines.yaml" in step["run"]
+    assert "inputs.heldout" in step["run"]

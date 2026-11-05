@@ -1,6 +1,6 @@
 """Build the eval set: 20 real headlines to be labeled by hand.
 
-    python -m src.evalset [YYYY-MM-DD] [--seed N] [--force]
+    python -m src.evalset [YYYY-MM-DD] [--seed N] [--force] [--out FILE] [--exclude FILE]
 
 Reads  data/<profile>/YYYY-MM-DD_scores.json   (today's collected, ranked items)
 Writes evals/labeled_headlines.yaml            (headlines with an EMPTY `label:` each)
@@ -13,20 +13,29 @@ and the order is random, so the person labeling can't be nudged by the ranker.
 Only one item per story is considered (no five copies of the same event), and
 near-identical titles are never both picked. The file is never overwritten once
 any label has been filled in, unless --force is given.
+
+A HELD-OUT set (a second sample the prompt was never tuned on) is built with
+`--out evals/heldout_headlines.yaml --exclude evals/labeled_headlines.yaml`: nothing
+that is in, or about the same story as, an excluded headline can be picked.
 """
+import argparse
 import json
 import random
+import re
 import sys
 from difflib import SequenceMatcher
 
 import yaml
 
 from .config import ROOT, company_name, data_dir, profile_name, today
-from .fetch import normalize_title
+from .fetch import normalize_link, normalize_title
 
 EVALS_FILE = ROOT / "evals" / "labeled_headlines.yaml"
+HELDOUT_FILE = ROOT / "evals" / "heldout_headlines.yaml"
 BANDS = (("high", 4, 5, 7), ("mid", 2, 3, 7), ("low", 1, 1, 6))   # name, min score, max score, how many
 SIMILAR = 0.85          # titles this alike count as the same headline
+EXCLUDE_SIMILAR = 0.6   # to keep a held-out set apart, even loosely similar titles count as the same story
+EXCLUDE_WORDS = 0.5     # ...or sharing at least this fraction of their significant words
 DEFAULT_SEED = 20261105
 
 NOTE = """\
@@ -44,8 +53,44 @@ NOTE = """\
 """
 
 
+HELDOUT_NOTE = """\
+# HELD-OUT set: 20 headlines the ranking prompt has never been tuned on. They do not overlap
+# the main eval set (no shared headline, link, or story). Label them, run the eval ONCE per
+# prompt version, and do NOT change the prompt in response to these results; that would turn
+# this back into a training set. It exists to check how much of the main eval's score
+# carries over to headlines the prompt has not seen.
+#
+"""
+
+
 def _is_lead(item: dict) -> bool:
     return item.get("is_lead", True)
+
+
+def _words(title: str) -> set:
+    return {w for w in re.findall(r"[a-z0-9]+", normalize_title(title)) if len(w) > 3}
+
+
+def too_similar(a: str, b: str) -> bool:
+    """Loosely 'the same story': near-identical or mostly shared significant words."""
+    if SequenceMatcher(None, normalize_title(a), normalize_title(b)).ratio() >= EXCLUDE_SIMILAR:
+        return True
+    wa, wb = _words(a), _words(b)
+    return bool(wa and wb) and len(wa & wb) / len(wa | wb) >= EXCLUDE_WORDS
+
+
+def exclude_overlap(items: list[dict], reference: list[dict]) -> list[dict]:
+    """Drop every item that is in, or about the same story as, a reference headline.
+
+    `reference` rows have `headline` and `link`. An item is dropped if its link matches,
+    its title is loosely similar, or it belongs to the same story group (the ranker's
+    `story` number) as an item that was dropped for either reason.
+    """
+    links = {normalize_link(r["link"]) for r in reference if r.get("link")}
+    hit = [i for i in items if normalize_link(i.get("link", "")) in links
+           or any(too_similar(i["title"], r["headline"]) for r in reference)]
+    stories = {i["story"] for i in hit if "story" in i}
+    return [i for i in items if i not in hit and i.get("story") not in stories]
 
 
 def pick(items: list[dict], seed: int = DEFAULT_SEED) -> tuple[list[dict], dict]:
@@ -86,10 +131,13 @@ def pick(items: list[dict], seed: int = DEFAULT_SEED) -> tuple[list[dict], dict]
     return chosen, counts
 
 
-def render(chosen: list[dict], company: str, profile: str) -> str:
+def render(chosen: list[dict], company: str, profile: str, heldout: bool = False) -> str:
     """The YAML text: a note, then each headline with an empty label."""
     q = lambda s: json.dumps(str(s), ensure_ascii=False)                  # JSON strings are valid YAML
-    lines = [NOTE.format(company=company), f"profile: {profile}", "headlines:"]
+    note = NOTE.format(company=company)
+    if heldout:                                                            # explain what this set is for, first
+        note = HELDOUT_NOTE + note
+    lines = [note, f"profile: {profile}", "headlines:"]
     for n, item in enumerate(chosen, 1):
         lines += [f"  - id: {n}",
                   f"    headline: {q(item['title'])}",
@@ -110,25 +158,36 @@ def has_labels(path) -> bool:
 
 
 def main() -> int:
-    args = sys.argv[1:]
-    force = "--force" in args
-    seed = int(args[args.index("--seed") + 1]) if "--seed" in args else DEFAULT_SEED
-    positional = [a for i, a in enumerate(args) if not a.startswith("--") and (i == 0 or args[i - 1] != "--seed")]
-    day = positional[0] if positional else today()
-    if has_labels(EVALS_FILE) and not force:
-        print(f"{EVALS_FILE.name} already has labels: not overwriting (use --force to replace it).")
+    ap = argparse.ArgumentParser(prog="python -m src.evalset")
+    ap.add_argument("day", nargs="?", default=None, help="YYYY-MM-DD (default: today, Denver)")
+    ap.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    ap.add_argument("--force", action="store_true", help="overwrite a file that already has labels")
+    ap.add_argument("--out", default=None, help="file to write (default evals/labeled_headlines.yaml)")
+    ap.add_argument("--exclude", action="append", default=[], help="labeled file whose headlines/stories to avoid")
+    args = ap.parse_args()
+    out = (ROOT / args.out) if args.out else EVALS_FILE
+    heldout = out.resolve() != EVALS_FILE.resolve() and bool(args.exclude)
+    day = args.day or today()
+    if has_labels(out) and not args.force:
+        print(f"{out.name} already has labels: not overwriting (use --force to replace it).")
         return 1
     try:
         items = json.loads((data_dir() / f"{day}_scores.json").read_text(encoding="utf-8"))["items"]
+        reference = [h for path in args.exclude
+                     for h in (yaml.safe_load((ROOT / path).read_text(encoding="utf-8")) or {}).get("headlines", [])]
     except (OSError, ValueError):
-        print(f"No scores file for {day}: run fetch and rank first.")
+        print(f"No scores file for {day} (or an unreadable --exclude file): run fetch and rank first.")
         return 1
-    chosen, counts = pick(items, seed)
+    before = len(items)
+    items = exclude_overlap(items, reference) if reference else items
+    chosen, counts = pick(items, args.seed)
     if len(chosen) < 20:
         print(f"Only {len(chosen)} suitable headlines in today's data (wanted 20).")
-    EVALS_FILE.parent.mkdir(exist_ok=True)
-    EVALS_FILE.write_text(render(chosen, company_name(), profile_name()), encoding="utf-8")
-    print(f"wrote {len(chosen)} headlines to {EVALS_FILE} (seed {seed}); labels are empty.")
+    out.parent.mkdir(exist_ok=True)
+    out.write_text(render(chosen, company_name(), profile_name(), heldout), encoding="utf-8")
+    print(f"excluded {before - len(items)} of {before} items overlapping the reference set" if reference else "no exclusions")
+    print(f"drawn from the score bands (4-5 / 2-3 / 1): {counts['high']} / {counts['mid']} / {counts['low']}")
+    print(f"wrote {len(chosen)} headlines to {out} (seed {args.seed}); labels are empty.")
     return 0
 
 

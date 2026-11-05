@@ -69,8 +69,10 @@ def test_the_trust_bullets_carry_real_numbers_that_match_the_eval_results():
     trust = " ".join(sections(README.read_text())["How I know it's trustworthy"])
     assert re.search(r"\b\d{3} (automated )?tests\b", trust)
     assert "75%" in trust and "90%" in trust and "fail" in trust.lower() and "quote" in trust.lower()
+    assert "held-out set it had never seen" in trust                   # the held-out result is cited, not just the tuning set
     results = (ROOT / "evals" / "results.md").read_text()
     assert "75%" in results and "90%" in results                       # the same numbers, in the record
+    assert "Held-out set" in results and "Not directly comparable to the tuning set" in results
 
 
 def test_readme_points_at_every_doc_and_the_spec():

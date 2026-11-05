@@ -7,8 +7,8 @@ import pytest
 import yaml
 
 import src.evaluate as evaluate
-from src.evaluate import (EvalError, compare, format_multi_report, format_report, load_labeled, parse_runs,
-                          summarize_runs, to_items)
+from src.evaluate import (EVALS_FILE, EvalError, compare, format_multi_report, format_report, load_labeled,
+                          parse_file, parse_runs, summarize_runs, to_items)
 
 REAL_FILE = Path(__file__).resolve().parent.parent / "evals" / "labeled_headlines.yaml"
 
@@ -205,3 +205,27 @@ def test_main_with_runs_ranks_that_many_times_and_reports_the_mean(repo, monkeyp
     assert "Agreement per run: 2/2, 1/2, 1/2" in out and "Mean agreement: 1.3/2 (67%)" in out
     saved = json.loads((repo / "data" / "eval_report.json").read_text())
     assert saved["runs"] == 3 and saved["agreements"] == [2, 1, 1]
+
+
+# ------------------------------------------------------------- which file to score
+
+def test_parse_file_defaults_to_the_main_set_and_accepts_the_heldout_set():
+    assert parse_file([]) == EVALS_FILE
+    assert parse_file(["--file", "evals/heldout_headlines.yaml"]).name == "heldout_headlines.yaml"
+    with pytest.raises(EvalError):
+        parse_file(["--file"])
+
+
+def test_main_scores_only_the_file_it_is_given_and_names_it_in_the_report(repo, monkeypatch, capsys):
+    other = write(repo, ["noise", "signal"])
+    monkeypatch.setattr(evaluate.anthropic, "Anthropic", lambda: stub_client([1, 5]))
+    monkeypatch.setattr("sys.argv", ["evaluate", "--file", str(other)])         # an absolute path works too
+    assert evaluate.main() == 0
+    out = capsys.readouterr().out
+    assert "Eval file: " in out and "labeled.yaml" in out and "Agreement: 2/2 (100%)" in out
+    assert json.loads((repo / "data" / "eval_report.json").read_text())["file"] == "labeled.yaml"
+
+
+def test_a_missing_labeled_file_is_a_clear_error(repo, monkeypatch, capsys):
+    monkeypatch.setattr("sys.argv", ["evaluate", "--file", str(repo / "nope.yaml")])
+    assert evaluate.main() == 1 and "Eval not ready" in capsys.readouterr().out
