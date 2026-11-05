@@ -36,7 +36,9 @@ def test_daily_brief_schedule_manual_run_and_secret():
 def test_daily_brief_commits_briefs_but_not_on_push_test_runs():
     steps = load("daily-brief.yml")["jobs"]["brief"]["steps"]
     commit = next(s for s in steps if "Commit" in s.get("name", ""))
-    assert "github.event_name != 'push'" in commit["if"]
+    assert "github.event_name == 'schedule'" in commit["if"]       # the daily run always commits
+    assert "inputs.commit == true" in commit["if"]                 # a manual run can opt out
+    assert "push" not in commit["if"]                              # pushes (test runs) never commit
     assert "git add briefs/ README.md" in commit["run"]       # the brief, its index, and the latest link
     assert "TARGET_PROFILE" in commit["run"]                  # commit message names the profile
 
@@ -69,3 +71,14 @@ def test_weekly_step_cannot_block_the_daily_brief_and_has_a_manual_flag():
     assert weekly["continue-on-error"] is True and index["continue-on-error"] is True
     assert weekly["env"]["FORCE_WEEKLY"] == "${{ inputs.weekly }}"
     assert triggers(wf)["workflow_dispatch"]["inputs"]["weekly"]["type"] == "boolean"
+
+
+def test_manual_run_has_a_commit_switch_that_defaults_to_on_and_a_brief_printing_step():
+    wf = load("daily-brief.yml")
+    inputs = triggers(wf)["workflow_dispatch"]["inputs"]
+    assert inputs["commit"]["type"] == "boolean" and inputs["commit"]["default"] is True
+    steps = wf["jobs"]["brief"]["steps"]
+    show = next(s for s in steps if "run summary" in s.get("name", ""))
+    assert show["continue-on-error"] is True and "GITHUB_STEP_SUMMARY" in show["run"]
+    names = [s.get("name", "") for s in steps]
+    assert names.index(show["name"]) < next(i for i, n in enumerate(names) if n.startswith("Commit"))

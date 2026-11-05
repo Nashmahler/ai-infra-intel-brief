@@ -12,11 +12,11 @@ Step 5 (src/verify.py) checks the links in this draft before it is published.
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 
 import anthropic
 
-from .config import data_dir, load_profile, market_labels, profile_facts_text
+from .config import data_dir, load_profile, market_labels, profile_facts_text, today
 from .fetch import normalize_link
 from .rank import MODEL, outlet
 
@@ -27,6 +27,10 @@ TEXT_CHARS = 4000   # characters of full article text shown to the writer per st
 MAX_TOP, MAX_WATCH, MAX_NOISE = 3, 6, 5   # section sizes from SPEC.md
 
 CONFIDENCE = ["Confirmed", "Reported"]
+DIRECTIONS = ["Opportunity", "Risk"]
+CHANNELS = ["Revenue & pricing", "Costs & margins", "Financing & cost of capital",
+            "Customers & pipeline", "Siting & timeline"]
+UNSIZED = "unsized"
 
 
 SYSTEM_TEMPLATE = """\
@@ -65,6 +69,22 @@ TOP DEVELOPMENTS: choose the three most important stories from CANDIDATES.
     Do NOT give generic advice or instructions ("{company} may want to review...",
     "should monitor developments", "this highlights the importance of...").
     If the link to {company} is indirect, say so and say what would change that.
+  - Business impact, four fields that follow from why_it_matters:
+      direction: "Opportunity" or "Risk" for {company}, on balance.
+      channel: how it would reach the business; exactly one of: {channels}.
+      size: ONLY a figure that is stated word for word either in the story text
+        or in the {company} profile above, copied EXACTLY as written (for
+        example "$3.5 billion" or "900 MW"). If it comes from the story text,
+        put a quote containing that figure in size_quote (4 to 24 words, copied
+        exactly, same rules as quote). If it comes from the profile, leave
+        size_quote empty. If no such figure exists, write exactly: unsized.
+        NEVER estimate, round, convert, add up, or infer a number, and never
+        turn a vague amount ("billions", "large") into a figure. Code checks
+        this, and any figure it cannot find becomes "unsized".
+      consider: one specific option or question for {company} that exists
+        BECAUSE of this story: a named counterparty, site, contract, financing,
+        or product from the story or the profile. No generic advice ("monitor
+        developments", "review its strategy", "stay close to...").
   - area: the one part of the business from your first sentence of why_it_matters,
     one of: {areas}.
   - confidence, judged on the core fact of the story:
@@ -100,7 +120,8 @@ def build_system_prompt() -> str:
     c = load_profile()["company"]
     return SYSTEM_TEMPLATE.format(
         company=c["name"], company_upper=c["name"].upper(), description=c["description"],
-        areas=", ".join(c["business_areas"]), profile=profile_facts_text())
+        areas=", ".join(c["business_areas"]), channels="; ".join(CHANNELS),
+        profile=profile_facts_text())
 
 
 def build_schema() -> dict:
@@ -112,6 +133,7 @@ def build_schema() -> dict:
     return obj(
         top=dict(type="array", items=obj(
             what_happened=s, quote=s, why_it_matters=s,
+            direction=e(DIRECTIONS), channel=e(CHANNELS), size=s, size_quote=s, consider=s,
             area=e(load_profile()["company"]["business_areas"]),
             confidence=e(CONFIDENCE), link=s)),
         watchlist=dict(type="array", items=obj(
@@ -225,11 +247,29 @@ def title_lines(company: str, day: str) -> list[str]:
             f"*{pretty_date(day)}*", ""]
 
 
+def impact_lines(item: dict) -> list[str]:
+    """The structured business-impact block that follows "Why it matters"."""
+    size = item.get("size") or UNSIZED
+    basis = {"source": " (stated in the source)", "profile": " (from the company profile)"}
+    return ["- **Business impact:**",
+            f"  - **Direction:** {item.get('direction', '')}",
+            f"  - **Channel:** {item.get('channel', '')}",
+            f"  - **Size:** {size}{basis.get(item.get('size_basis'), '') if size != UNSIZED else ''}",
+            f"  - **Consider:** {item.get('consider', '')}"]
+
+
 def evidence_line(item: dict) -> str:
     """The small 'Evidence' line: the supporting quote and what it was found in."""
-    where = {"article": "article text", "summary": "RSS summary"}.get(item.get("evidence_source"))
-    quote = item.get("quote", "").strip().strip('"')
-    return f'- <sub>**Evidence:** "{quote}"{f" ({where})" if where else ""}</sub>'
+    names = {"article": "article text", "summary": "RSS summary"}
+
+    def cite(quote, source):
+        where = names.get(source)
+        return f'"{quote.strip().strip(chr(34))}"' + (f" ({where})" if where else "")
+
+    text = f"**Evidence:** {cite(item.get('quote', ''), item.get('evidence_source'))}"
+    if item.get("size_basis") == "source" and item.get("size_quote"):    # a figure's own quote
+        text += f" · **Size:** {cite(item['size_quote'], item.get('size_evidence_source'))}"
+    return f"- <sub>{text}</sub>"
 
 
 def render_markdown(brief: dict, day: str, articles: dict[str, dict], stats: dict,
@@ -258,6 +298,7 @@ def render_markdown(brief: dict, day: str, articles: dict[str, dict], stats: dic
         out += [f"**{n}.**",
                 f"- **What happened:** {it['what_happened']}",
                 f"- **Why it matters to {company}:** {it['why_it_matters']}",
+                *impact_lines(it),
                 f"- **Confidence:** {it['confidence']}",
                 f"- **Source:** {link(it['link'])}",
                 evidence_line(it), ""]
@@ -267,9 +308,14 @@ def render_markdown(brief: dict, day: str, articles: dict[str, dict], stats: dic
     out += ["## Noise we ignored", ""]
     out += [f"- {link(it['link'])} — {it['reason']}" for it in brief["noise"]] + [""]
     failed_txt = ", ".join(failed) if failed else "none"
-    out += ["---",
-            f"*Articles scanned: {stats['scanned']} · kept: {stats['kept']} · "
-            f"sources that failed to load: {failed_txt}*", ""]
+    footer = (f"Articles scanned: {stats['scanned']} · kept: {stats['kept']} · "
+              f"sources that failed to load: {failed_txt}")
+    tops = brief["top"]
+    if tops and all("full_text" in t for t in tops):      # set by verification, so not in drafts
+        full = sum(bool(t["full_text"]) for t in tops)
+        footer += (f" · top stories with full article text: {full} of {len(tops)} "
+                   f"({len(tops) - full} summary only)")
+    out += ["---", f"*{footer}*", ""]
     return "\n".join(out)
 
 
@@ -289,7 +335,7 @@ def main() -> int:
         print("ANTHROPIC_API_KEY is not set. Export it (never put it in code).")
         return 1
     day = (sys.argv[1] if len(sys.argv) > 1
-           else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+           else today())
     data = data_dir()
     raw = json.loads((data / f"{day}_raw.json").read_text(encoding="utf-8"))
     ranked = json.loads((data / f"{day}_scores.json").read_text(encoding="utf-8"))["items"]

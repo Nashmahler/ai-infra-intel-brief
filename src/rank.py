@@ -9,11 +9,10 @@ SDK. It is never written in code or config.
 import json
 import os
 import sys
-from datetime import datetime, timezone
 
 import anthropic
 
-from .config import data_dir, load_profile, market_labels, profile_facts_text
+from .config import data_dir, load_profile, market_labels, profile_facts_text, today
 
 MODEL = "claude-opus-5-5"   # one place to change the model
 MAX_ITEMS = 100             # cap on items sent per run (keeps cost and output bounded)
@@ -178,7 +177,7 @@ def main() -> int:
         print("ANTHROPIC_API_KEY is not set. Export it (never put it in code).")
         return 1
     day = (sys.argv[1] if len(sys.argv) > 1
-           else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+           else today())
     raw = json.loads((data_dir() / f"{day}_raw.json").read_text(encoding="utf-8"))
 
     items = raw["items"]

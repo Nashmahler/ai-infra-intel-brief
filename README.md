@@ -32,6 +32,9 @@ Full requirements: [`SPEC.md`](SPEC.md).
 - What happened:          one or two sentences, facts from the article only
 - Why it matters to Crusoe: the part of the company's business affected, the
                             mechanism, and what to watch next
+- Business impact:        Direction (Opportunity | Risk), Channel (one of five),
+                          Size (a stated figure, else "unsized"), Consider (one
+                          specific option or question for the company)
 - Confidence:             Confirmed | Reported
 - Source:                 [Article title](link) (Publisher)
 - Evidence (small print): a short quote from the article that supports
@@ -40,8 +43,10 @@ Full requirements: [`SPEC.md`](SPEC.md).
 ## Watchlist roundup      3–6 one-line items by market, each with a link
 ## Noise we ignored       3–5 skipped items, each with a one-line reason
 ## This week's themes   Fridays only: 3 themes, each citing the daily briefs
+## Opportunities         Fridays only: customers, distressed assets or power
+                          contracts, partnerships, pricing signals
 ---
-Articles scanned · kept · sources that failed to load
+Articles scanned · kept · failed sources · top stories with full text vs summary only
 ```
 
 **Confirmed** means the story itself shows a company earnings report or press
@@ -55,15 +60,31 @@ One Python pipeline, run in order by GitHub Actions:
 
 | Step | Command | What it does | Output (git-ignored `data/<profile>/`) |
 |---|---|---|---|
-| 1. Fetch | `python -m src.fetch` | Reads every feed in `sources.yaml` (plus the profile's own Google News searches), keeps items from the last 48 hours, **deduplicates** (same link, or titles ≥ 85% alike), and **filters** to items that mention a watchlist term (shared `watchlist.yaml` terms plus the profile's). A failed or empty feed is logged and skipped; it never stops the run. | `YYYY-MM-DD_raw.json` |
+| 1. Fetch | `python -m src.fetch` | Reads every feed in `sources.yaml` (plus the profile's own Google News searches), keeps items from the last 48 hours, **deduplicates** (same link, or titles ≥ 85% alike), and **filters** to items that mention a watchlist term (shared `watchlist.yaml` terms plus the profile's). A failed or empty feed is logged and skipped; it never stops the run. Items that survive are then **decoded**: Google News redirect links are turned into the publisher's URL (see below), and the two copies of a story that now share a URL are merged. | `YYYY-MM-DD_raw.json` |
 | 2. Rank | `python -m src.rank` | Claude scores each item 1–5 (relevance to the target company, novelty, source quality) with a one-line reason, and groups items into **stories**. A story covered by 3+ outlets gets a +1 boost; only its best article is a candidate, so wide coverage raises a story instead of crowding out others. | `YYYY-MM-DD_scores.json` |
 | 3. Full text | `python -m src.fulltext` | Tries to fetch the full article text of the 10 strongest stories, **obeying robots.txt** and skipping paywalled or blocked pages, pages with almost no text, and Google News redirect links. Anything that can't be fetched falls back to the RSS summary, and the reason is recorded. | `YYYY-MM-DD_fulltext.json` |
 | 4. Write | `python -m src.write` | Claude writes the brief as structured data from the strongest stories, including a **short supporting quote** (4–24 words) for each "What happened". Our code renders the exact format, enforces one story per top/watchlist slot, and fills in the footer from the collected data. | `YYYY-MM-DD_brief.json` + a draft `.md` |
 | 5. Verify | `python -m src.verify` | **A code check, not an AI check.** Links and quotes. See below. | `briefs/<profile>/YYYY-MM-DD.md` |
-| 6. Weekly | `python -m src.weekly` | **Fridays only** (or on request): reads the week's verified briefs and adds a "This week's themes" section: 3 themes, each citing the daily briefs it draws on, verified in code. | adds a section to today's brief |
+| 6. Weekly | `python -m src.weekly` | **Fridays only** (or on request): reads the week's verified briefs and adds **"This week's themes"** (3 themes, each citing the daily briefs it draws on) and **"Opportunities"** (potential customers, distressed assets or power contracts, partnerships, pricing signals; each citing one daily brief with a quote), verified in code. | adds a section to today's brief |
 | 7. Index | `python -m src.index` | Rebuilds `briefs/<profile>/README.md` (every brief, newest first) and the **Latest brief** link at the top of this README. | `briefs/<profile>/README.md`, `README.md` |
 
 Then the workflow commits `briefs/<profile>/` (for the demo profile: `briefs/crusoe/`) and the README. The weekly and index steps never block the daily brief: if either fails, the brief is committed as it was.
+
+**Dates.** Briefs and data folders are named by the **America/Denver** date, not
+the UTC date: a 5 p.m. Mountain run on Nov 4 is already Nov 5 in UTC, and used to
+produce a Nov 5 brief. The 6 a.m. Mountain schedule lands on the same calendar day
+in both zones all year; the Friday check for the weekly section uses the Denver date too.
+
+**Google News links.** Most stories arrive as Google News redirect links. After
+dedupe and filtering, the fetch step decodes them to the publisher's URL with the
+[`googlenewsdecoder`](https://pypi.org/project/googlenewsdecoder/) package (newest
+items first, one request per second, at most 150 links and 5 minutes per run, and it
+stops early if Google refuses 5 in a row). The decoded URL is the story's `link`
+(used for full-text fetching and for display); the Google link is kept as
+`original_link`, and **both count as collected for verification**. A link that
+can't be decoded keeps its original Google link and is shown with the publisher name.
+The footer reports how many of the brief's top stories had full article text versus
+summary only.
 
 ### Where the configuration lives (all editable, no code changes)
 
@@ -149,11 +170,22 @@ ordinary code (`src/verify.py`) that the model cannot influence:
    quote check makes this much harder to fake, but it is still a rule given to
    the model, not something code can prove (see limitations).
 
-**Weekly themes follow the same rules.** Each theme must cite at least two
+**The business-impact line is checked too.** Direction must be Opportunity or Risk
+and Channel one of the five allowed values (Revenue & pricing; Costs & margins;
+Financing & cost of capital; Customers & pipeline; Siting & timeline), otherwise
+the item is removed. **Size** may only be a figure copied word for word either from
+the company profile or from a quote that itself passes the quote check; an invented,
+estimated, rounded, rewritten, or vague amount is reset to exactly **"unsized"**
+(and logged), and the item keeps its other fields. The figure's quote is shown in
+the Evidence line.
+
+**Weekly sections follow the same rules.** Each theme must cite at least two
 different daily briefs, and every cited date must be a brief that was actually
 read (unmatched citations are removed). Each theme also needs a verbatim quote
-from one of the briefs it cites. A theme that fails is dropped and logged; if
-none survive, the brief is left exactly as it was.
+from one of the briefs it cites. Each **opportunity** cites one daily brief with a
+verbatim quote from it, has one of four categories, and may contain a number only if
+that number appears in the brief it cites. Anything that fails is dropped and
+logged; if nothing survives, the brief is left exactly as it was.
 
 The verify step runs even if an earlier step crashed, so a failure still
 produces the "no verified brief" note rather than nothing.
@@ -185,7 +217,8 @@ python -m src.index            # refresh the briefs index and the Latest brief l
 
 On GitHub: **Actions → Daily brief → Run workflow** for a manual run (tick
 **Also add this week's themes** to run the weekly synthesis on a day that isn't
-a Friday). It also runs on schedule. GitHub's cron is UTC and ignores daylight saving, so the
+a Friday; untick **Commit the brief to the repo** for a test run that leaves
+nothing behind. The finished brief is printed into the run's log and summary). It also runs on schedule. GitHub's cron is UTC and ignores daylight saving, so the
 workflow fires at both 12:00 and 13:00 UTC and a "gate" step lets through only
 the run that lands on 6:00 a.m. in Denver. The **Check feeds** workflow tests
 all feed URLs from GitHub's runners; the check passes if at least half work and
@@ -212,7 +245,18 @@ saved samples under `tests/samples/`. They cover:
 - **Full-text fetching:** robots.txt disallow (and an unreadable robots.txt)
   stops the request, paywall signals and stub pages fall back to the summary,
   Google News redirects are never scraped, and network errors never raise.
-- **Weekly themes:** the last-seven-days window, failed days and the index file
+- **Dates:** the Denver date at the UTC boundary (a 5:18 p.m. Mountain run is still
+  that day), midnight rollover in winter and summer, daylight-saving days, every
+  step using the same helper, and no step computing a date from UTC itself.
+- **Google News decoding:** decoded links become the link with the Google link
+  kept, failures keep the original, requests are spaced and capped, five failures
+  in a row stop it, only Google links are sent, and decoded duplicates merge.
+- **Footer:** full-text vs summary-only counts for the top stories.
+- **Business impact:** a model-invented dollar figure becomes "unsized" (with or
+  without a fabricated quote), a figure must be copied exactly from its quote or the
+  profile, vague amounts are not figures, every allowed Direction and Channel is
+  accepted and invalid ones remove the item.
+- **Weekly themes and opportunities:** the last-seven-days window, failed days and the index file
   excluded, a fabricated quote or a citation to a brief that doesn't exist
   removes the theme, Friday-only gating with a manual override, and the brief is
   untouched when nothing survives.
@@ -230,11 +274,11 @@ saved samples under `tests/samples/`. They cover:
 ## Known limitations
 
 - **Paywalled sources and stories that never reach free feeds** are invisible.
-- **Full text is only sometimes available.** Most items arrive as Google News
-  redirect links, which are not scraped, so they (and anything blocked by
-  robots.txt or a paywall) are checked against the RSS title and summary
-  instead. The Evidence line says which. It also means a Google News story can
-  only be labeled Reported.
+- **Full text is only sometimes available.** Anything blocked by robots.txt or a
+  paywall, any page with little text, and any Google News link that could not be
+  decoded is checked against the RSS title and summary instead. The Evidence line
+  says which, and the footer counts how many top stories had full text. A story
+  backed only by a summary can only be labeled Reported.
 - **A matching quote proves the words exist in the text, not that the claim is
   right.** A real quote can still be summarized slightly wrong, or taken out of
   context. The reader still decides.
@@ -253,15 +297,23 @@ saved samples under `tests/samples/`. They cover:
   outside it would need new shared terms too.
 - **Important stories that don't use watchlist terms** are filtered out before
   Claude ever sees them. Review `watchlist.yaml` as the markets change.
-- **"Why it matters" is a judgment call** and should be reviewed by a person.
-  It is explicitly framed as inference, but it is the model's inference.
+- **"Why it matters", Direction, Channel, and Consider are judgment calls** and
+  should be reviewed by a person. They are explicitly framed as inference, but
+  they are the model's inference. Code checks that Direction and Channel are valid
+  values and that Size is a stated figure, not that the choices are *right*, and
+  "no generic advice" in Consider is a prompt rule, not something code can prove.
+- **Size is deliberately conservative.** A figure must be copied exactly from a
+  verified quote or the profile, so a number the model rounded or restated
+  ("$3.5B" for "$3.5 billion") becomes "unsized" even if it was correct. The
+  weekly Opportunities have no Size field; their figures must appear in the cited brief.
 - **Verification proves a link was collected, not that a sentence is accurate.**
   A real link attached to a slightly wrong summary passes the source check. The
   claim check is a prompt rule plus the structure of the pipeline, not a proof.
-- **Google News links.** Most are redirects and can't be resolved to the
-  publisher's page offline (newer ones are encrypted), so the brief links to
-  Google's redirect and shows the publisher name beside it. When a link can be
-  decoded, the publisher URL is used.
+- **Google News decoding is unofficial.** It relies on a third-party package that
+  talks to Google's own endpoints, which can change, block, or rate-limit us at any
+  time. When it fails we keep the Google link (and show the publisher), so a bad day
+  means less full text, not a broken brief. Decoding up to 150 links adds a few
+  minutes to a run.
 - **Feed coverage.** Data Center Frontier and The Register's data centre feed
   were dropped because no working RSS URL could be confirmed (the candidates are
   noted in `sources.yaml`). Some feeds may fail or move at any time; the footer

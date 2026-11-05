@@ -36,6 +36,8 @@ def test_fake_link_from_the_writer_never_reaches_the_published_brief():
 
     top = lambda link: {"what_happened": "W", "quote": "announced a power purchase agreement",
                         "why_it_matters": "Y", "area": "power",
+                        "direction": "Risk", "channel": "Siting & timeline", "size": "unsized",
+                        "size_quote": "", "consider": "Ask whether the Abilene timeline holds.",
                         "confidence": "Reported", "link": link}
     brief = write_brief(ranked, stub({"top": [top(real), top("https://fake.example/invented")],
                                       "watchlist": [], "noise": []}))
@@ -62,6 +64,8 @@ def test_fabricated_quote_from_the_writer_fails_closed_end_to_end():
         {"scores": [{"id": 0, "score": 5, "story": 0, "reason": "major"}]}))
     invented = {"what_happened": "W", "quote": "CoreWeave will build a campus on the moon",
                 "why_it_matters": "Y", "area": "power", "confidence": "Reported",
+                "direction": "Risk", "channel": "Siting & timeline", "size": "unsized",
+                "size_quote": "", "consider": "Ask whether the Abilene timeline holds.",
                 "link": ranked[0]["link"]}                      # a REAL link, an invented quote
     brief = write_brief(ranked, stub({"top": [invented], "watchlist": [], "noise": []}))
     md, log, verified = build_final("2026-11-04", raw, brief)

@@ -18,12 +18,11 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
-from .config import USER_AGENT, data_dir
+from .config import USER_AGENT, data_dir, today
 
 N_FETCH = 10            # how many of the strongest stories to try
 TIMEOUT = 10            # seconds per request
@@ -156,7 +155,7 @@ def fetch_top_articles(ranked: list[dict], get=http_get) -> dict:
 
 def main() -> int:
     day = (sys.argv[1] if len(sys.argv) > 1
-           else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+           else today())
     data = data_dir()
     try:
         ranked = json.loads((data / f"{day}_scores.json").read_text(encoding="utf-8"))["items"]

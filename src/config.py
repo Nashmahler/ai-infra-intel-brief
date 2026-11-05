@@ -11,8 +11,10 @@ companies never overwrite each other's files.
 """
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote_plus
+from zoneinfo import ZoneInfo
 
 import yaml
 
@@ -22,6 +24,10 @@ DEFAULT_PROFILE = "crusoe"
 
 # Identify ourselves politely to every site we fetch from.
 USER_AGENT = "ai-infra-intel-brief/0.1 (personal research prototype)"
+
+# Briefs and data folders are named by the date in this time zone (the readers'
+# morning), not by the UTC date: a 5 p.m. Mountain run on Nov 4 is already Nov 5 in UTC.
+BRIEF_TIMEZONE = "America/Denver"
 
 REQUIRED_COMPANY_KEYS = ("name", "description", "customers", "competitors", "business_areas")
 
@@ -33,6 +39,17 @@ class ProfileError(RuntimeError):
 def load_yaml(name: str) -> dict:
     with open(ROOT / name, encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+# -------------------------------------------------------------------- dates
+
+def today(now: datetime | None = None) -> str:
+    """The date (YYYY-MM-DD) that names today's brief and data files, in Denver time.
+
+    `now` is only for tests; it must be timezone-aware (UTC is fine).
+    """
+    now = now or datetime.now(timezone.utc)
+    return now.astimezone(ZoneInfo(BRIEF_TIMEZONE)).strftime("%Y-%m-%d")
 
 
 # ----------------------------------------------------------------- profiles
