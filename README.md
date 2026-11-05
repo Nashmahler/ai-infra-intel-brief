@@ -60,13 +60,14 @@ One Python pipeline, run in order by GitHub Actions:
 
 | Step | Command | What it does | Output (git-ignored `data/<profile>/`) |
 |---|---|---|---|
-| 1. Fetch | `python -m src.fetch` | Reads every feed in `sources.yaml` (plus the profile's own Google News searches), keeps items from the last 48 hours, **deduplicates** (same link, or titles ≥ 85% alike), and **filters** to items that mention a watchlist term (shared `watchlist.yaml` terms plus the profile's). A failed or empty feed is logged and skipped; it never stops the run. Items that survive are then **decoded**: Google News redirect links are turned into the publisher's URL (see below), and the two copies of a story that now share a URL are merged. | `YYYY-MM-DD_raw.json` |
+| 1. Fetch | `python -m src.fetch` | Reads every feed in `sources.yaml` (plus the profile's own Google News searches), keeps items from the last 48 hours, **deduplicates** (same link, or titles ≥ 85% alike), and **filters** to items that mention a watchlist term (shared `watchlist.yaml` terms plus the profile's). A failed or empty feed is logged and skipped; it never stops the run. | `YYYY-MM-DD_raw.json` |
 | 2. Rank | `python -m src.rank` | Claude scores each item 1–5 (relevance to the target company, novelty, source quality) with a one-line reason, and groups items into **stories**. A story covered by 3+ outlets gets a +1 boost; only its best article is a candidate, so wide coverage raises a story instead of crowding out others. | `YYYY-MM-DD_scores.json` |
-| 3. Full text | `python -m src.fulltext` | Tries to fetch the full article text of the 10 strongest stories, **obeying robots.txt** and skipping paywalled or blocked pages, pages with almost no text, and Google News redirect links. Anything that can't be fetched falls back to the RSS summary, and the reason is recorded. | `YYYY-MM-DD_fulltext.json` |
-| 4. Write | `python -m src.write` | Claude writes the brief as structured data from the strongest stories, including a **short supporting quote** (4–24 words) for each "What happened". Our code renders the exact format, enforces one story per top/watchlist slot, and fills in the footer from the collected data. | `YYYY-MM-DD_brief.json` + a draft `.md` |
-| 5. Verify | `python -m src.verify` | **A code check, not an AI check.** Links and quotes. See below. | `briefs/<profile>/YYYY-MM-DD.md` |
-| 6. Weekly | `python -m src.weekly` | **Fridays only** (or on request): reads the week's verified briefs and adds **"This week's themes"** (3 themes, each citing the daily briefs it draws on) and **"Opportunities"** (potential customers, distressed assets or power contracts, partnerships, pricing signals; each citing one daily brief with a quote), verified in code. | adds a section to today's brief |
-| 7. Index | `python -m src.index` | Rebuilds `briefs/<profile>/README.md` (every brief, newest first) and the **Latest brief** link at the top of this README. | `briefs/<profile>/README.md`, `README.md` |
+| 3. Decode | `python -m src.decode` | Decodes **Google News links to publisher URLs for the top 60 ranked items only** (see below). Never blocks the brief; logs a warning if Google starts refusing. | updates `_raw.json` and `_scores.json`; `YYYY-MM-DD_decode.json` |
+| 4. Full text | `python -m src.fulltext` | Tries to fetch the full article text of the 10 strongest stories, **obeying robots.txt** and skipping paywalled or blocked pages, pages with almost no text, and Google News redirect links. Anything that can't be fetched falls back to the RSS summary, and the reason is recorded. | `YYYY-MM-DD_fulltext.json` |
+| 5. Write | `python -m src.write` | Claude writes the brief as structured data from the strongest stories, including a **short supporting quote** (4–24 words) for each "What happened". Our code renders the exact format, enforces one story per top/watchlist slot, and fills in the footer from the collected data. | `YYYY-MM-DD_brief.json` + a draft `.md` |
+| 6. Verify | `python -m src.verify` | **A code check, not an AI check.** Links and quotes. See below. | `briefs/<profile>/YYYY-MM-DD.md` |
+| 7. Weekly | `python -m src.weekly` | **Fridays only** (or on request): reads the week's verified briefs and adds **"This week's themes"** (3 themes, each citing the daily briefs it draws on) and **"Opportunities"** (potential customers, distressed assets or power contracts, partnerships, pricing signals; each citing one daily brief with a quote), verified in code. | adds a section to today's brief |
+| 8. Index | `python -m src.index` | Rebuilds `briefs/<profile>/README.md` (every brief, newest first) and the **Latest brief** link at the top of this README. | `briefs/<profile>/README.md`, `README.md` |
 
 Then the workflow commits `briefs/<profile>/` (for the demo profile: `briefs/crusoe/`) and the README. The weekly and index steps never block the daily brief: if either fails, the brief is committed as it was.
 
@@ -75,14 +76,18 @@ the UTC date: a 5 p.m. Mountain run on Nov 4 is already Nov 5 in UTC, and used t
 produce a Nov 5 brief. The 6 a.m. Mountain schedule lands on the same calendar day
 in both zones all year; the Friday check for the weekly section uses the Denver date too.
 
-**Google News links.** Most stories arrive as Google News redirect links. After
-dedupe and filtering, the fetch step decodes them to the publisher's URL with the
-[`googlenewsdecoder`](https://pypi.org/project/googlenewsdecoder/) package (newest
-items first, one request per second, at most 150 links and 5 minutes per run, and it
-stops early if Google refuses 5 in a row). The decoded URL is the story's `link`
+**Google News links.** Most stories arrive as Google News redirect links. Right
+after ranking, the decode step turns the links of the **top 60 ranked items** into
+publisher URLs with the [`googlenewsdecoder`](https://pypi.org/project/googlenewsdecoder/)
+package, best-ranked first, one request per second, at most 5 minutes per run, and it
+stops early if Google refuses 5 in a row. Ranking comes first so Google requests are
+spent only on stories that can reach the brief. The decoded URL is the story's `link`
 (used for full-text fetching and for display); the Google link is kept as
-`original_link`, and **both count as collected for verification**. A link that
-can't be decoded keeps its original Google link and is shown with the publisher name.
+`original_link` in both the raw and scores files, so **both count as collected for
+verification**. A link that can't be decoded keeps its original Google link and is
+shown with the publisher name. If decoding starts failing, the step logs it at once
+(`::warning::` lines on the run page: how many links had worked, the reason, and
+when it gave up) and records the reasons in `YYYY-MM-DD_decode.json`.
 The footer reports how many of the brief's top stories had full article text versus
 summary only.
 
@@ -173,11 +178,13 @@ ordinary code (`src/verify.py`) that the model cannot influence:
 **The business-impact line is checked too.** Direction must be Opportunity or Risk
 and Channel one of the five allowed values (Revenue & pricing; Costs & margins;
 Financing & cost of capital; Customers & pipeline; Siting & timeline), otherwise
-the item is removed. **Size** may only be a figure copied word for word either from
-the company profile or from a quote that itself passes the quote check; an invented,
-estimated, rounded, rewritten, or vague amount is reset to exactly **"unsized"**
-(and logged), and the item keeps its other fields. The figure's quote is shown in
-the Evidence line.
+the item is removed. **Size** may only be a figure copied word for word from **the
+story's own quote**, one that itself passes the quote check. **Company-profile
+figures (such as a campus capacity) never count as a Size**: they describe the
+company's exposure, not how big the story is, so they belong in "Why it matters",
+where they are still welcome. An invented, estimated, rounded, rewritten, vague, or
+profile-sourced amount is reset to exactly **"unsized"** (and logged), and the item
+keeps its other fields. The figure's quote is shown in the Evidence line.
 
 **Weekly sections follow the same rules.** Each theme must cite at least two
 different daily briefs, and every cited date must be a brief that was actually
@@ -248,13 +255,19 @@ saved samples under `tests/samples/`. They cover:
 - **Dates:** the Denver date at the UTC boundary (a 5:18 p.m. Mountain run is still
   that day), midnight rollover in winter and summer, daylight-saving days, every
   step using the same helper, and no step computing a date from UTC itself.
-- **Google News decoding:** decoded links become the link with the Google link
-  kept, failures keep the original, requests are spaced and capped, five failures
-  in a row stop it, only Google links are sent, and decoded duplicates merge.
+- **Google News decoding:** only the top 60 ranked items are decoded, in rank order;
+  decoded links become the link with the Google link kept in both files, failures
+  keep the original, requests are spaced, a time budget and five failures in a row
+  stop it, only Google links are sent, and decoded duplicates merge. **Failure
+  logging:** a warning at the first failure (with how many links had worked), a
+  warning when it gives up (with the last reason), the failure reasons counted, and
+  no warnings when everything works.
 - **Footer:** full-text vs summary-only counts for the top stories.
 - **Business impact:** a model-invented dollar figure becomes "unsized" (with or
-  without a fabricated quote), a figure must be copied exactly from its quote or the
-  profile, vague amounts are not figures, every allowed Direction and Channel is
+  without a fabricated quote), a figure must be copied exactly from the story's own
+  quote, **every figure in the company profile is rejected as a Size** (with no quote,
+  a real quote that lacks it, or a fabricated one) while staying untouched in "Why it
+  matters", vague amounts are not figures, every allowed Direction and Channel is
   accepted and invalid ones remove the item.
 - **Weekly themes and opportunities:** the last-seven-days window, failed days and the index file
   excluded, a fabricated quote or a citation to a brief that doesn't exist
@@ -302,8 +315,8 @@ saved samples under `tests/samples/`. They cover:
   they are the model's inference. Code checks that Direction and Channel are valid
   values and that Size is a stated figure, not that the choices are *right*, and
   "no generic advice" in Consider is a prompt rule, not something code can prove.
-- **Size is deliberately conservative.** A figure must be copied exactly from a
-  verified quote or the profile, so a number the model rounded or restated
+- **Size is deliberately conservative.** A figure must be copied exactly from the
+  story's own verified quote, so a number the model rounded or restated
   ("$3.5B" for "$3.5 billion") becomes "unsized" even if it was correct. The
   weekly Opportunities have no Size field; their figures must appear in the cited brief.
 - **Verification proves a link was collected, not that a sentence is accurate.**
@@ -312,8 +325,8 @@ saved samples under `tests/samples/`. They cover:
 - **Google News decoding is unofficial.** It relies on a third-party package that
   talks to Google's own endpoints, which can change, block, or rate-limit us at any
   time. When it fails we keep the Google link (and show the publisher), so a bad day
-  means less full text, not a broken brief. Decoding up to 150 links adds a few
-  minutes to a run.
+  means less full text, not a broken brief. Decoding the top 60 links adds
+  about a minute to a run.
 - **Feed coverage.** Data Center Frontier and The Register's data centre feed
   were dropped because no working RSS URL could be confirmed (the candidates are
   noted in `sources.yaml`). Some feeds may fail or move at any time; the footer
