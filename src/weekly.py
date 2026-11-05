@@ -18,11 +18,11 @@ import json
 import os
 import re
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 import anthropic
 
-from .config import briefs_dir, data_dir, load_profile, profile_facts_text
+from .config import briefs_dir, data_dir, load_profile, profile_facts_text, today
 from .quotes import quote_problem
 from .rank import MODEL
 
@@ -185,7 +185,7 @@ def main() -> int:
     args = sys.argv[1:]
     force = "--force" in args or os.environ.get("FORCE_WEEKLY", "").strip().lower() in ("1", "true", "yes")
     days = [a for a in args if not a.startswith("--")]
-    day = days[0] if days else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    day = days[0] if days else today()
 
     if not force and date.fromisoformat(day).weekday() != 4:        # 4 = Friday
         print(f"{day} is not a Friday: skipping the weekly synthesis (use --force to run it).")

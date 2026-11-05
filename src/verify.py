@@ -21,9 +21,8 @@ Writes briefs/<profile>/YYYY-MM-DD.md            (the published file)
 """
 import json
 import sys
-from datetime import datetime, timezone
 
-from .config import briefs_dir, company_name, data_dir
+from .config import briefs_dir, company_name, data_dir, today
 from .fetch import normalize_link
 from .quotes import quote_problem
 from .write import CONFIDENCE, article_index, render_markdown, title_lines
@@ -176,7 +175,7 @@ def read_json(path):
 
 def main() -> int:
     day = (sys.argv[1] if len(sys.argv) > 1
-           else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+           else today())
     data = data_dir()
     md, removals, verified = build_final(
         day, read_json(data / f"{day}_raw.json"), read_json(data / f"{day}_brief.json"),

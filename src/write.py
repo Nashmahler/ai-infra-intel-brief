@@ -12,11 +12,11 @@ Step 5 (src/verify.py) checks the links in this draft before it is published.
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 
 import anthropic
 
-from .config import data_dir, load_profile, market_labels, profile_facts_text
+from .config import data_dir, load_profile, market_labels, profile_facts_text, today
 from .fetch import normalize_link
 from .rank import MODEL, outlet
 
@@ -289,7 +289,7 @@ def main() -> int:
         print("ANTHROPIC_API_KEY is not set. Export it (never put it in code).")
         return 1
     day = (sys.argv[1] if len(sys.argv) > 1
-           else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+           else today())
     data = data_dir()
     raw = json.loads((data / f"{day}_raw.json").read_text(encoding="utf-8"))
     ranked = json.loads((data / f"{day}_scores.json").read_text(encoding="utf-8"))["items"]
