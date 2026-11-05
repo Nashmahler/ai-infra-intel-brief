@@ -43,6 +43,39 @@ the same 20 headlines then measured the result, so part of the gain is fitting t
 do not overlap (14-16 before, 18-18 after), so it is not run-to-run noise, but only a fresh set of labeled
 headlines the prompt has never seen can say how much carries over.
 
+## Held-out set, 2026-11-05 (current prompt, never tuned on it)
+
+[`heldout_headlines.yaml`](heldout_headlines.yaml): 20 fresh headlines from the same day's data that share no
+headline, link, or story with the tuning set above (6 labeled signal, 14 noise). Scored with the **current prompt, unchanged**
+(3 runs, commit `68abb83`); the set was never used to change the prompt.
+
+| | held-out set |
+|---|---|
+| agreement per run (of 20) | 18, 18, 18 |
+| **mean agreement** | **18.0/20 (90%)** |
+| mean false positives / false negatives | 2.0 / 0.0 |
+| precision / recall | 75% (6 of the 8 it called signal) / 100% (all 6 of your signals) |
+
+**False positives, wrong in all 3 runs** (ranker scored 3, labeled noise):
+- #8 The City of Tampa is considering a data center moratorium
+- #16 AWS proceeds with data center project in Walla Walla, Washington
+
+**False negatives:** none. Every headline labeled signal scored 3 or higher in every run.
+
+**Not directly comparable to the tuning set** (read this before comparing the two 90% figures):
+- **It leans toward mid-range headlines.** Only 1 of its 20 came from the ranker's 4-5 band (13 from 2-3, 6 from 1), not the
+  7 / 7 / 6 mix of the tuning set. 44 of the day's 100 ranked items overlapped the tuning set (mostly the same CoreWeave and
+  Texas story cluster, where the high scores were), so excluding them left almost no high scorers. The mid band is where the
+  ranker was weakest, so this is a harder test in that respect.
+- **The base rate differs.** With 14 noise of 20, a ranker that called everything noise would already agree 70% of the
+  time (60% on the tuning set, 12 noise of 20). Against those baselines the held-out result is +20 points and the tuning
+  result +30.
+- The two 90% figures happening to match is a coincidence, not evidence they are equivalent.
+- **The pattern:** all the errors are false positives on local or project-level data center news (a city moratorium, a
+  hyperscaler site) that the relevance-first rule keeps at 3 and that you judged noise. The new prompt errs toward including
+  a relevant story rather than missing one.
+- Still 20 headlines and one labeler, from one day's data, so a miss or two moves the number by 5 points.
+
 ## Original single run, 2026-11-05 (old prompt, before the `--runs` option existed)
 
 | | you said signal | you said noise |

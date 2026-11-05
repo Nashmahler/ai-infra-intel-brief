@@ -16,8 +16,8 @@ A daily brief on AI infrastructure for one target company (Crusoe is the demo) i
 ## How I know it's trustworthy
 - **Quote-verified claims:** each top story needs a 4-24 word quote that appears word for word in the article, or the item is removed and logged; tests inject fake links and quotes to prove it.
 - **Fails closed:** if nothing verifies, it publishes "No verified brief today" instead of an unsupported brief.
-- **Measured ranking:** the ranker agrees with my 20 hand-labeled headlines 90% of the time (mean of 3 runs), up from 75% before a prompt fix.
-- **297 automated tests** run offline, and the whole pipeline runs live on GitHub every day.
+- **Measured ranking:** ranker agreement with my labels: 75% → 90% on the tuning set, and 90% on a held-out set it had never seen (3 runs each).
+- **309 automated tests** run offline, and the whole pipeline runs live on GitHub every day.
 
 ## Known limitations
 - Full article text depends on an unofficial Google News decoder and on sites allowing access (9 of 10 in the latest run); otherwise claims are checked against the RSS summary and labeled "Reported".
