@@ -5,11 +5,17 @@ This is a plain code check, not an AI check:
   1. Every link in the brief must match an article collected in step 2.
      Any item with a missing or unmatched link is removed, and the removal is
      logged.
-  2. If collection failed, the brief is missing, or no top development
+  2. Every top development's supporting quote must appear, word for word
+     (whitespace and quote styles aside), in the text we actually hold: the
+     fetched article if we have it, otherwise the RSS title and summary. A
+     missing, malformed, or non-matching quote removes the item. A "Confirmed"
+     label also needs the quote to come from the full article; if only the RSS
+     summary backs it, the label is downgraded to "Reported". Both are logged.
+  3. If collection failed, the brief is missing, or no top development
      survives, we write a short "no verified brief today" file instead of a
      brief with unsupported claims. (Fail closed.)
 
-Reads  data/<profile>/YYYY-MM-DD_raw.json and ..._brief.json
+Reads  data/<profile>/YYYY-MM-DD_raw.json, ..._fulltext.json and ..._brief.json
 Writes briefs/<profile>/YYYY-MM-DD.md            (the published file)
        data/<profile>/YYYY-MM-DD_verification.json (what was removed, and why)
 """
@@ -19,6 +25,7 @@ from datetime import datetime, timezone
 
 from .config import briefs_dir, company_name, data_dir
 from .fetch import normalize_link
+from .quotes import quote_problem
 from .write import CONFIDENCE, article_index, render_markdown, title_lines
 
 SECTIONS = ("top", "watchlist", "noise")
@@ -38,8 +45,46 @@ def collected_links(items: list[dict]) -> dict[str, str]:
     return allowed
 
 
-def verify_brief(brief: dict, allowed: dict[str, str]) -> tuple[dict, list[dict]]:
-    """Drop every item whose link is not in `allowed`. Returns (clean, removals).
+def evidence_index(items: list[dict], fulltext: dict | None) -> dict[str, dict]:
+    """The text each collected link can be checked against.
+
+    normalized link -> {"article": fetched full text or "", "summary": title + RSS summary}.
+    Both the publisher link and the original Google News link point at the same entry.
+    """
+    articles = (fulltext or {}).get("articles", {})
+    index = {}
+    for i in items:
+        entry = {"article": articles.get(i["link"], ""),
+                 "summary": f"{i['title']} {i.get('summary', '')}"}
+        index[normalize_link(i["link"])] = entry
+        if i.get("original_link"):
+            index[normalize_link(i["original_link"])] = entry
+    return index
+
+
+def check_quote(item: dict, evidence: dict | None) -> tuple[str | None, str | None]:
+    """Check a top item's quote. Returns (problem, evidence_source).
+
+    evidence_source is "article" if the quote is in the full text, "summary" if
+    only in the RSS title/summary, None if the quote is rejected.
+    """
+    if evidence is None:
+        return "no source text held for this link", None
+    quote = item.get("quote") or ""
+    if evidence["article"] and quote_problem(quote, evidence["article"]) is None:
+        return None, "article"
+    problem = quote_problem(quote, evidence["summary"])
+    if problem is None:
+        return None, "summary"
+    return problem, None
+
+
+def verify_brief(brief: dict, allowed: dict[str, str],
+                 evidence: dict[str, dict]) -> tuple[dict, list[dict]]:
+    """Run the link check and the quote check. Returns (clean, log).
+
+    The log has one entry per removal or downgrade: {"action": "removed" |
+    "downgraded", "section", "link", "reason", "text"}.
 
     Surviving items get the canonical collected link, so a harmless variant
     (a trailing slash, a utm tag) is tidied rather than trusted as typed.
@@ -54,16 +99,36 @@ def verify_brief(brief: dict, allowed: dict[str, str]) -> tuple[dict, list[dict]
             elif normalize_link(link) not in allowed:
                 reason = "link not in collected set"
             else:
+                reason = None
                 item = {**item, "link": allowed[normalize_link(link)]}
-                if section == "top" and item.get("confidence") not in CONFIDENCE:
-                    item["confidence"] = "Reported"   # unknown label -> safest label
-                kept.append(item)
-                continue
-            removals.append({"section": section, "link": link, "reason": reason,
-                             "text": (item.get("what_happened") or item.get("line")
-                                      or item.get("reason") or "")[:120]})
+                if section == "top":
+                    if item.get("confidence") not in CONFIDENCE:
+                        item["confidence"] = "Reported"   # unknown label -> safest label
+                    reason, source = check_quote(item, evidence.get(normalize_link(link)))
+                    if reason is None:
+                        item["evidence_source"] = source
+                        if item["confidence"] == "Confirmed" and source == "summary":
+                            item["confidence"] = "Reported"
+                            removals.append(log_entry(
+                                "downgraded", section, link, item,
+                                "Confirmed needs the quote in the full article; "
+                                "only the RSS summary backs it"))
+                if reason is None:
+                    kept.append(item)
+                    continue
+            removals.append(log_entry("removed", section, link, item, reason))
         clean[section] = kept
     return clean, removals
+
+
+def log_entry(action: str, section: str, link: str, item: dict, reason: str) -> dict:
+    """One line of the verification log."""
+    text = item.get("what_happened") or item.get("line") or item.get("reason") or ""
+    entry = {"action": action, "section": section, "link": link, "reason": reason,
+             "text": text[:120]}
+    if item.get("quote"):
+        entry["quote"] = item["quote"][:160]
+    return entry
 
 
 def no_brief(day: str, reason: str, stats: dict, failed: list[str], company: str) -> str:
@@ -78,7 +143,8 @@ def no_brief(day: str, reason: str, stats: dict, failed: list[str], company: str
         f"sources that failed to load: {failed_txt}*", ""])
 
 
-def build_final(day: str, raw: dict | None, brief: dict | None, company: str | None = None):
+def build_final(day: str, raw: dict | None, brief: dict | None, company: str | None = None,
+                fulltext: dict | None = None):
     """Decide what gets published. Returns (markdown, removals, verified)."""
     company = company or company_name()
     raw = raw or {}
@@ -91,9 +157,10 @@ def build_final(day: str, raw: dict | None, brief: dict | None, company: str | N
     if brief is None:
         return no_brief(day, "no draft brief was produced", stats, failed, company), [], False
 
-    clean, removals = verify_brief(brief, collected_links(items))
+    clean, removals = verify_brief(brief, collected_links(items),
+                                   evidence_index(items, fulltext))
     if not clean["top"]:
-        why = ("every top development was removed by the source check" if brief.get("top")
+        why = ("every top development was removed by the source and quote checks" if brief.get("top")
                else "the draft contained no top developments")
         return no_brief(day, why, stats, failed, company), removals, False
     return render_markdown(clean, day, article_index(items), stats, failed, company), removals, True
@@ -112,17 +179,21 @@ def main() -> int:
            else datetime.now(timezone.utc).strftime("%Y-%m-%d"))
     data = data_dir()
     md, removals, verified = build_final(
-        day, read_json(data / f"{day}_raw.json"), read_json(data / f"{day}_brief.json"))
+        day, read_json(data / f"{day}_raw.json"), read_json(data / f"{day}_brief.json"),
+        fulltext=read_json(data / f"{day}_fulltext.json"))
 
-    for r in removals:   # the log of what the check removed
-        print(f"REMOVED [{r['section']}] {r['reason']}: {r['link'] or '(none)'} | {r['text']}")
+    for r in removals:   # the log of what the checks removed or downgraded
+        print(f"{r['action'].upper()} [{r['section']}] {r['reason']}: "
+              f"{r['link'] or '(none)'} | {r['text']}"
+              + (f" | quote: {r['quote']}" if r.get("quote") else ""))
     (data / f"{day}_verification.json").write_text(
         json.dumps({"verified": verified, "removals": removals}, indent=2), encoding="utf-8")
 
     out = briefs_dir() / f"{day}.md"
     out.write_text(md, encoding="utf-8")
+    removed = sum(r["action"] == "removed" for r in removals)
     print(f"{'verified brief' if verified else 'NO VERIFIED BRIEF'} -> {out} "
-          f"({len(removals)} item(s) removed)")
+          f"({removed} item(s) removed, {len(removals) - removed} downgraded)")
     return 0
 
 

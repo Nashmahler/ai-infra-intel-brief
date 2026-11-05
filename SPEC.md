@@ -23,10 +23,13 @@ Every morning it:
 - **Why it matters to [company]:** two sentences: the specific part of the company's business affected and the mechanism, then what to watch next. No generic advice. (The parts of the business come from the profile; for Crusoe: power, manufacturing, data centers, cloud.)
 - **Confidence:** Confirmed (company announcement, filing, or regulator) or Reported (press citing sources).
 - **Source:** link to the primary article.
+- **Evidence:** a short supporting quote (4–24 words) from the article, in small print, with whether it came from the article text or the RSS summary. Checked in code (section 6).
 
 **Watchlist roundup:** 3–6 one-line items by market, each with a link.
 
 **Noise we ignored:** 3–5 items it skipped, each with a one-line reason (e.g., "opinion piece, no new facts," "duplicate of item 2," "not relevant to the company's markets").
+
+**This week's themes (Fridays only, or on request):** 3 themes from the week's verified briefs, each citing the daily briefs it draws on, with a supporting quote. Verified under the same rules (section 6).
 
 **Footer:** number of articles scanned, number kept, and any sources that failed to load.
 
@@ -75,9 +78,11 @@ A single Python script that runs once a day on GitHub Actions:
 2. **Deduplicate:** merge items covering the same story (same link, or very similar titles).
 3. **Filter:** keep items that mention a watchlist term.
 4. **Rank:** send the filtered list to Claude with a scoring prompt (relevance to the target company, novelty, source quality). Each item gets a score from 1 to 5 and a one-line reason.
-5. **Write:** send the top-ranked items to Claude with the brief-writing prompt and the exact format above.
-6. **Verify:** a code check, not an AI check. Every link in the brief must match an article collected in step 1. Any item with a missing or unmatched link is removed, and the removal is logged.
-7. **Deliver:** save the brief as `briefs/<profile>/YYYY-MM-DD.md` in the repo (one folder per profile, so companies never overwrite each other).
+5. **Fetch full text:** for the strongest stories, fetch the full article, obeying robots.txt and skipping paywalled, blocked, or near-empty pages and Google News redirects; fall back to the RSS summary and record why.
+6. **Write:** send the top-ranked items (full text where available) to Claude with the brief-writing prompt and the exact format above. Each "What happened" comes with a short verbatim supporting quote.
+7. **Verify:** a code check, not an AI check. Every link in the brief must match an article collected in step 1, and every top development's quote must appear in the text we hold. Any item that fails is removed, and the removal is logged.
+8. **Weekly synthesis (Fridays, or on request):** read the week's verified briefs for the profile and add "This week's themes", verified in code.
+9. **Deliver:** save the brief as `briefs/<profile>/YYYY-MM-DD.md` in the repo (one folder per profile, so companies never overwrite each other), rebuild the index `briefs/<profile>/README.md`, and update the "Latest brief" link at the top of the README.
 
 **Tools**
 - Python, with `feedparser`, `pyyaml`, and the `anthropic` package
@@ -90,10 +95,12 @@ A single Python script that runs once a day on GitHub Actions:
 ## 6. Verification and testing
 
 - **Source check (code):** every link must come from the collected set. Unmatched links are removed.
+- **Quote check (code):** each top development's supporting quote must appear word for word (whitespace, quote styles, and dash styles aside) in the fetched article text, or in the RSS title and summary when the article is unavailable. A missing, malformed, or non-matching quote removes the item; a "Confirmed" label backed only by the RSS summary is downgraded to Reported. Every removal or downgrade is logged.
+- **Weekly check (code):** every theme must cite at least two daily briefs that exist, and its quote must appear in one of them; failing themes are dropped.
 - **Claim check (prompt rule):** the writing prompt may only use facts present in the supplied article text, and must label anything uncertain as Reported.
-- **Unit tests (pytest):** use saved sample feeds as test data; confirm deduplication, filtering, and the source check behave correctly, including when a feed is down or empty, and when the brief contains a deliberately fake link.
+- **Unit tests (pytest):** use saved sample feeds as test data; confirm deduplication, filtering, and the source check behave correctly, including when a feed is down or empty, and when the brief contains a deliberately fake link or a fabricated quote.
 - **Eval set:** 20 real headlines labeled by hand as signal or noise for the target company (`evals/labeled_headlines.yaml`). Run the ranking step against them and record how often it agrees. Re-run after every prompt change.
-- **Fail closed:** if collection fails or the source check removes everything, write a short "no verified brief today" file instead of a brief with unsupported claims.
+- **Fail closed:** if collection fails or the source and quote checks leave no top development, write a short "no verified brief today" file instead of a brief with unsupported claims.
 
 ## 7. Build steps (one at a time; test each before moving on)
 

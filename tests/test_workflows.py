@@ -37,7 +37,7 @@ def test_daily_brief_commits_briefs_but_not_on_push_test_runs():
     steps = load("daily-brief.yml")["jobs"]["brief"]["steps"]
     commit = next(s for s in steps if "Commit" in s.get("name", ""))
     assert "github.event_name != 'push'" in commit["if"]
-    assert "git add briefs/" in commit["run"]
+    assert "git add briefs/ README.md" in commit["run"]       # the brief, its index, and the latest link
     assert "TARGET_PROFILE" in commit["run"]                  # commit message names the profile
 
 
@@ -50,3 +50,22 @@ def test_workflows_pass_the_target_profile_setting_through():
     for name in ("daily-brief.yml", "check-feeds.yml"):
         text = (ROOT / ".github" / "workflows" / name).read_text()
         assert "TARGET_PROFILE: ${{ vars.TARGET_PROFILE }}" in text, name
+
+
+def test_pipeline_steps_run_in_the_intended_order():
+    steps = [s.get("run", "") for s in load("daily-brief.yml")["jobs"]["brief"]["steps"]]
+    order = [next(i for i, r in enumerate(steps) if f"src.{m}" in r)
+             for m in ("fetch", "rank", "fulltext", "write", "verify", "weekly", "index")]
+    assert order == sorted(order)
+    commit = next(i for i, r in enumerate(steps) if "git commit" in r)
+    assert commit > order[-1]                                   # commit comes after everything it commits
+
+
+def test_weekly_step_cannot_block_the_daily_brief_and_has_a_manual_flag():
+    wf = load("daily-brief.yml")
+    steps = wf["jobs"]["brief"]["steps"]
+    weekly = next(s for s in steps if "src.weekly" in s.get("run", ""))
+    index = next(s for s in steps if "src.index" in s.get("run", ""))
+    assert weekly["continue-on-error"] is True and index["continue-on-error"] is True
+    assert weekly["env"]["FORCE_WEEKLY"] == "${{ inputs.weekly }}"
+    assert triggers(wf)["workflow_dispatch"]["inputs"]["weekly"]["type"] == "boolean"

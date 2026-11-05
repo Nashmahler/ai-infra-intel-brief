@@ -23,6 +23,7 @@ from .rank import MODEL, outlet
 N_CANDIDATES = 15   # strongest stories the writer may choose from
 N_NOISE = 10        # next-strongest stories it may list as "noise we ignored"
 N_DUPES = 5         # duplicate articles it may list as noise
+TEXT_CHARS = 4000   # characters of full article text shown to the writer per story
 MAX_TOP, MAX_WATCH, MAX_NOISE = 3, 6, 5   # section sizes from SPEC.md
 
 CONFIDENCE = ["Confirmed", "Reported"]
@@ -45,6 +46,13 @@ TOP DEVELOPMENTS: choose the three most important stories from CANDIDATES.
   - Coverage by several outlets means the story is important: weigh it, but
     use only ONE link per story (the one given).
   - what_happened: one or two sentences, only facts from the story text.
+  - quote: a short supporting quote for what_happened, copied EXACTLY, character
+    for character, from that story's text. Between 4 and 24 words, one unbroken
+    passage: no paraphrase, no ellipses, no splicing two passages together, no
+    quote marks inside it. Code checks that it appears in the text we hold, and
+    drops any story whose quote does not. If you cannot find a quote that
+    supports the claim, choose a different story. Each story says whether its
+    text is the full article or only an RSS summary; with a summary, claim less.
   - why_it_matters: two sentences.
       1. Name the specific part of {company}'s business affected (a campus,
          factory, customer relationship, supply, or product named in the
@@ -103,7 +111,8 @@ def build_schema() -> dict:
     s, e = {"type": "string"}, lambda vals: {"type": "string", "enum": vals}
     return obj(
         top=dict(type="array", items=obj(
-            what_happened=s, why_it_matters=s, area=e(load_profile()["company"]["business_areas"]),
+            what_happened=s, quote=s, why_it_matters=s,
+            area=e(load_profile()["company"]["business_areas"]),
             confidence=e(CONFIDENCE), link=s)),
         watchlist=dict(type="array", items=obj(
             market=e(market_labels() + [load_profile()["company"]["name"]]), line=s, link=s)),
@@ -125,8 +134,12 @@ def split_candidates(ranked: list[dict]):
             dupes[:N_DUPES])
 
 
-def build_prompt(ranked: list[dict]) -> str:
-    """Show the writer the strongest stories (full text) and the next tier."""
+def build_prompt(ranked: list[dict], articles: dict[str, str] | None = None) -> str:
+    """Show the writer the strongest stories and the next tier.
+
+    `articles` maps link -> fetched full text; stories without it show their RSS summary.
+    """
+    articles = articles or {}
     cands, noise, dupes = split_candidates(ranked)
     lead_of = {i.get("story"): i for i in ranked if i.get("is_lead", True)}
 
@@ -135,13 +148,18 @@ def build_prompt(ranked: list[dict]) -> str:
                         if m.get("story") == item.get("story") and "story" in m})
         return names or [outlet(item)]
 
+    def body(item):
+        if item["link"] in articles:
+            return f"text (full article, first {TEXT_CHARS} chars): {articles[item['link']][:TEXT_CHARS]}"
+        return f"text (RSS summary only): {item['summary']}"
+
     def fmt(item, extra=""):
         n = item.get("coverage", 1)
         return (f"- title: {item['title']}\n  link: {item['link']}\n"
                 f"  source: {outlet(item)} | published: {item['published']}\n"
                 f"  score: {item.get('story_score', item['score'])} ({item['reason']})\n"
                 f"  coverage: {n} outlet{'s' if n != 1 else ''}: {', '.join(outlets(item))}\n"
-                f"  text: {item['summary']}{extra}")
+                f"  {body(item)}{extra}")
 
     dupe_txt = [fmt(d, f"\n  duplicate_of: {lead_of[d['story']]['title']}"
                     if d.get("story") in lead_of else "") for d in dupes]
@@ -179,13 +197,13 @@ def enforce_diversity(brief: dict, ranked: list[dict]) -> dict:
     return out
 
 
-def write_brief(ranked: list[dict], client) -> dict:
+def write_brief(ranked: list[dict], client, articles: dict[str, str] | None = None) -> dict:
     """Ask Claude for the brief, then enforce the diversity rules in code."""
     response = client.messages.create(
         model=MODEL,
         max_tokens=16000,
         system=build_system_prompt(),
-        messages=[{"role": "user", "content": build_prompt(ranked)}],
+        messages=[{"role": "user", "content": build_prompt(ranked, articles)}],
         output_config={"format": {"type": "json_schema", "schema": build_schema()}},
     )
     if response.stop_reason in ("refusal", "max_tokens"):
@@ -205,6 +223,13 @@ def title_lines(company: str, day: str) -> list[str]:
     """The brief's title block, shared with the "no verified brief" file."""
     return [f"# AI Infrastructure Intelligence Brief — prepared for {company}", "",
             f"*{pretty_date(day)}*", ""]
+
+
+def evidence_line(item: dict) -> str:
+    """The small 'Evidence' line: the supporting quote and what it was found in."""
+    where = {"article": "article text", "summary": "RSS summary"}.get(item.get("evidence_source"))
+    quote = item.get("quote", "").strip().strip('"')
+    return f'- <sub>**Evidence:** "{quote}"{f" ({where})" if where else ""}</sub>'
 
 
 def render_markdown(brief: dict, day: str, articles: dict[str, dict], stats: dict,
@@ -234,7 +259,8 @@ def render_markdown(brief: dict, day: str, articles: dict[str, dict], stats: dic
                 f"- **What happened:** {it['what_happened']}",
                 f"- **Why it matters to {company}:** {it['why_it_matters']}",
                 f"- **Confidence:** {it['confidence']}",
-                f"- **Source:** {link(it['link'])}", ""]
+                f"- **Source:** {link(it['link'])}",
+                evidence_line(it), ""]
     out += ["## Watchlist roundup", ""]
     out += [f"- **{it['market']}:** {it['line']} — {pub_link(it['link'])}"
             for it in brief["watchlist"]] + [""]
@@ -271,7 +297,11 @@ def main() -> int:
         print("No scored items: nothing to write.")
         return 0
 
-    brief = write_brief(ranked, anthropic.Anthropic())
+    try:
+        articles = json.loads((data / f"{day}_fulltext.json").read_text(encoding="utf-8"))["articles"]
+    except (OSError, ValueError, KeyError):
+        articles = {}            # no full text available: the writer sees RSS summaries
+    brief = write_brief(ranked, anthropic.Anthropic(), articles)
     failed = [f["name"] for f in raw["failed_sources"]]
     (data / f"{day}_brief.json").write_text(json.dumps(brief, indent=2), encoding="utf-8")
     md = render_markdown(brief, day, article_index(raw["items"]), raw["stats"], failed)
