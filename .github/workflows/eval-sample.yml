@@ -2,7 +2,8 @@
 # Fetches and ranks today's news on a runner (the only place with network access
 # to the feeds and the API key), then picks 20 headlines stratified by what the
 # ranker thought, WITHOUT writing the scores, and commits the unlabeled file.
-# It refuses to overwrite a file that already has labels.
+# It refuses to overwrite a file that already has labels (delete the file first to
+# rebuild the sample, and expect to relabel it).
 name: Eval sample
 
 on:
@@ -12,10 +13,6 @@ on:
         description: "Commit the sample to the branch (untick to just see it in the log)"
         type: boolean
         default: true
-  push:
-    # Test runs while this file is being developed; remove once on main.
-    branches: [evals]
-    paths: [".github/workflows/eval-sample.yml"]
 
 permissions:
   contents: write
@@ -45,7 +42,7 @@ jobs:
       - name: Pick the 20 headlines
         run: python -m src.evalset
       - name: Commit the unlabeled sample
-        if: github.event_name == 'push' || inputs.commit == true
+        if: inputs.commit == true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

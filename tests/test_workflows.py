@@ -107,3 +107,22 @@ def test_the_old_shell_gate_that_only_allowed_the_6am_hour_is_gone_and_both_cron
     assert "date +%H" not in text and '!= "06"' not in text
     assert {c["cron"] for c in triggers(load("daily-brief.yml"))["schedule"]} == {"0 12 * * *", "0 13 * * *"}
     assert "6:00 to 11:59 a.m." in text
+
+
+def test_eval_workflows_are_manual_only_and_keep_the_key_in_secrets():
+    for name in ("eval.yml", "eval-sample.yml"):
+        wf, text = load(name), (ROOT / ".github/workflows" / name).read_text()
+        assert list(triggers(wf)) == ["workflow_dispatch"], name        # no branch-specific test triggers left
+        assert "secrets.ANTHROPIC_API_KEY" in text and "sk-ant" not in text
+    assert load("eval.yml")["permissions"] == {"contents": "read"}      # the eval never writes to the repo
+    steps = load("eval.yml")["jobs"]["eval"]["steps"]
+    assert steps[-1]["run"] == "python -m src.evaluate"
+
+
+def test_the_sample_workflow_ranks_before_sampling_and_only_commits_when_asked():
+    steps = load("eval-sample.yml")["jobs"]["sample"]["steps"]
+    runs = [s.get("run", "") for s in steps]
+    order = [next(i for i, r in enumerate(runs) if f"src.{m}" in r) for m in ("fetch", "rank", "evalset")]
+    assert order == sorted(order)
+    commit = next(s for s in steps if "Commit" in s.get("name", ""))
+    assert commit["if"] == "inputs.commit == true" and "git add evals/labeled_headlines.yaml" in commit["run"]
