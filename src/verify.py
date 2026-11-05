@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 
 from .config import briefs_dir, company_name, data_dir
 from .fetch import normalize_link
-from .quotes import normalize, quote_problem
+from .quotes import quote_problem
 from .write import CONFIDENCE, article_index, render_markdown, title_lines
 
 SECTIONS = ("top", "watchlist", "noise")
