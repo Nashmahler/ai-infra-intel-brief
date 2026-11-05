@@ -10,6 +10,7 @@ import base64
 import calendar
 import json
 import re
+import time
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
@@ -18,6 +19,10 @@ import feedparser
 
 from .config import USER_AGENT, all_feeds, data_dir, today
 
+DECODE_INTERVAL = 1.0      # seconds to wait between requests to Google (a short rate limit)
+MAX_DECODE = 150           # most Google links we will try to decode per run
+DECODE_BUDGET = 300.0      # stop decoding after this many seconds in total
+MAX_CONSECUTIVE_FAILURES = 5   # this many failures in a row = Google is refusing us; stop
 WINDOW_HOURS = 48          # how far back to look
 TITLE_SIMILARITY = 0.85    # titles this alike (0-1) are treated as the same story
 
@@ -62,6 +67,74 @@ def decode_google_news_url(url: str) -> str | None:
     except UnicodeDecodeError:
         return None
     return candidate if candidate.startswith(("http://", "https://")) else None
+
+
+def is_google_news(url: str) -> bool:
+    return urlparse(url).netloc == "news.google.com"
+
+
+def decode_with_package(url: str) -> str | None:
+    """Ask the googlenewsdecoder package for a Google News link's publisher URL.
+
+    This makes web requests to Google. Returns the publisher URL, or None on
+    ANY failure (package missing, network error, Google refusing, odd result),
+    so the caller can simply keep the original link.
+    """
+    try:
+        from googlenewsdecoder import gnewsdecoder
+        result = gnewsdecoder(url, timeout=10)       # we pace calls ourselves: no `interval`
+    except Exception:
+        return None
+    if not isinstance(result, dict):
+        return None
+    ok = result.get("success", result.get("status"))   # newer versions say success, older status
+    decoded = result.get("decoded_url") if ok else None
+    if isinstance(decoded, str) and decoded.startswith(("http://", "https://")) \
+            and not is_google_news(decoded):
+        return decoded
+    return None
+
+
+def resolve_google_links(items: list[dict], decoder=decode_with_package,
+                         interval: float = DECODE_INTERVAL, limit: int = MAX_DECODE,
+                         budget: float = DECODE_BUDGET, sleep=time.sleep,
+                         clock=time.monotonic) -> tuple[list[dict], dict]:
+    """Replace Google News redirect links with the publisher's URL where we can.
+
+    The decoded URL becomes `link` (used for full-text fetching and display) and
+    the Google link is kept as `original_link`, so BOTH count as collected for
+    verification. A link that cannot be decoded is left exactly as it was.
+
+    Politeness and safety: newest items first; `interval` seconds between
+    requests; at most `limit` attempts and `budget` seconds in total; and
+    after MAX_CONSECUTIVE_FAILURES failures in a row we stop asking Google.
+    Returns (items in their original order, stats).
+    """
+    pending = sorted((i for i, item in enumerate(items) if is_google_news(item["link"])),
+                     key=lambda i: items[i]["published"], reverse=True)
+    stats = {"google_links": len(pending), "google_decoded": 0, "google_failed": 0,
+             "google_skipped": 0}
+    out = list(items)
+    started, last_call, streak = clock(), None, 0
+    for n, i in enumerate(pending):
+        # How long we must pause before this request (rate limit between requests).
+        wait = 0.0 if last_call is None else max(0.0, interval - (clock() - last_call))
+        out_of_time = (clock() - started) + wait > budget       # judged by when it would START
+        if n >= limit or out_of_time or streak >= MAX_CONSECUTIVE_FAILURES:
+            stats["google_skipped"] = len(pending) - n
+            break
+        if wait:
+            sleep(wait)
+        last_call = clock()
+        decoded = decoder(items[i]["link"])
+        if decoded:
+            out[i] = {**items[i], "link": decoded, "original_link": items[i]["link"]}
+            stats["google_decoded"] += 1
+            streak = 0
+        else:
+            stats["google_failed"] += 1
+            streak += 1
+    return out, stats
 
 
 def entries_to_items(parsed, source: str, now: datetime) -> list[dict]:
@@ -187,16 +260,23 @@ def filter_by_watchlist(items: list[dict], terms: list[str]) -> list[dict]:
 
 # --------------------------------------------------------------------- main
 
-def collect(feeds, terms, now, fetcher=fetch_feed) -> dict:
-    """Run the whole collection pipeline and return the result as a dict."""
+def collect(feeds, terms, now, fetcher=fetch_feed, resolver=resolve_google_links) -> dict:
+    """Run the whole collection pipeline and return the result as a dict.
+
+    Order matters: dedupe and filter first, so we only decode Google links for
+    items we will actually use; then dedupe AGAIN, because two copies of one
+    story (a publisher's own feed and its Google News copy) now share a URL.
+    """
     fetched, failed = fetch_all(feeds, now, fetcher)
     unique = dedupe(fetched)
     kept = filter_by_watchlist(unique, terms)
+    kept, google = resolver(kept)
+    kept = dedupe(kept)
     return {
         "generated_at": now.isoformat(),
         "window_hours": WINDOW_HOURS,
         "stats": {"scanned": len(fetched), "after_dedup": len(unique),
-                  "kept": len(kept)},
+                  "kept": len(kept), **google},
         "failed_sources": failed,
         "items": kept,
     }
@@ -211,6 +291,9 @@ def main(now: datetime | None = None) -> None:
     s = result["stats"]
     print(f"scanned {s['scanned']}, unique {s['after_dedup']}, kept {s['kept']}, "
           f"{len(result['failed_sources'])} source(s) failed -> {out}")
+    print(f"Google News links: decoded {s['google_decoded']} of {s['google_links']} "
+          f"({s['google_failed']} failed and kept as Google links, "
+          f"{s['google_skipped']} not attempted)")
     for f in result["failed_sources"]:
         print(f"  FAILED {f['name']}: {f['reason']}")
 

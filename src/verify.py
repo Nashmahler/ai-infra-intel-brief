@@ -103,9 +103,11 @@ def verify_brief(brief: dict, allowed: dict[str, str],
                 if section == "top":
                     if item.get("confidence") not in CONFIDENCE:
                         item["confidence"] = "Reported"   # unknown label -> safest label
-                    reason, source = check_quote(item, evidence.get(normalize_link(link)))
+                    held = evidence.get(normalize_link(link))
+                    reason, source = check_quote(item, held)
                     if reason is None:
                         item["evidence_source"] = source
+                        item["full_text"] = bool(held["article"])   # did we have the whole article?
                         if item["confidence"] == "Confirmed" and source == "summary":
                             item["confidence"] = "Reported"
                             removals.append(log_entry(

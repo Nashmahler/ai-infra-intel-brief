@@ -190,3 +190,29 @@ def test_main_writes_the_brief_under_the_profile_folder(tmp_path, monkeypatch):
     assert out.exists() and "No verified brief today" in out.read_text()
     assert (tmp_path / "data" / "crusoe" / f"{DAY}_verification.json").exists()
     assert not (tmp_path / "briefs" / f"{DAY}.md").exists()
+
+
+# -------------------------------------------- full text vs summary-only count
+
+def test_footer_counts_top_stories_with_full_text_vs_summary_only():
+    items = [ITEMS[0], {**ITEMS[1], "link": "https://pub.com/resolved"}]
+    raw = {**RAW, "items": items}
+    two = {"top": [top(REAL, quote="The agreement covers 200 megawatts of new capacity"),
+                   top("https://pub.com/resolved", quote="expanded the Abilene campus this week")],
+           "watchlist": [], "noise": []}
+    md, _, ok = build_final(DAY, raw, two, fulltext=FULLTEXT)           # full text only for REAL
+    assert ok and "top stories with full article text: 1 of 2 (1 summary only)" in md
+    assert md.rstrip().endswith("(1 summary only)*")
+
+
+def test_a_story_with_full_text_counts_even_if_its_quote_came_from_the_summary():
+    md, _, ok = build_final(DAY, RAW, brief([REAL]), fulltext=FULLTEXT)   # GOOD_QUOTE is in the summary
+    assert ok and "(RSS summary)" in md                                   # evidence came from the summary...
+    assert "top stories with full article text: 1 of 1 (0 summary only)" in md   # ...but we did hold the article
+
+
+def test_all_summary_only_and_the_no_brief_note_has_no_such_count():
+    md, _, _ = build_final(DAY, RAW, brief([REAL]))
+    assert "top stories with full article text: 0 of 1 (1 summary only)" in md
+    note, _, ok = build_final(DAY, RAW, brief(["https://fake.example/1"]))
+    assert not ok and "top stories" not in note

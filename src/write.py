@@ -267,9 +267,14 @@ def render_markdown(brief: dict, day: str, articles: dict[str, dict], stats: dic
     out += ["## Noise we ignored", ""]
     out += [f"- {link(it['link'])} — {it['reason']}" for it in brief["noise"]] + [""]
     failed_txt = ", ".join(failed) if failed else "none"
-    out += ["---",
-            f"*Articles scanned: {stats['scanned']} · kept: {stats['kept']} · "
-            f"sources that failed to load: {failed_txt}*", ""]
+    footer = (f"Articles scanned: {stats['scanned']} · kept: {stats['kept']} · "
+              f"sources that failed to load: {failed_txt}")
+    tops = brief["top"]
+    if tops and all("full_text" in t for t in tops):      # set by verification, so not in drafts
+        full = sum(bool(t["full_text"]) for t in tops)
+        footer += (f" · top stories with full article text: {full} of {len(tops)} "
+                   f"({len(tops) - full} summary only)")
+    out += ["---", f"*{footer}*", ""]
     return "\n".join(out)
 
 
