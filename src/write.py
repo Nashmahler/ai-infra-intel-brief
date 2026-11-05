@@ -41,7 +41,8 @@ You write a daily AI infrastructure intelligence brief prepared for {company},
 {profile}
 Use the profile only to explain why a story matters. Never present a profile
 fact as something an article said, and never put one in `what_happened`. If you
-mention the IPO, call it reported.
+mention the IPO, call it reported. Profile figures (a campus capacity, say) may
+appear in why_it_matters as {company}'s exposure, but NEVER in Size.
 
 TOP DEVELOPMENTS: choose the three most important stories from CANDIDATES.
   - Each candidate is a different story. Choose three different ones. When
@@ -72,15 +73,18 @@ TOP DEVELOPMENTS: choose the three most important stories from CANDIDATES.
   - Business impact, four fields that follow from why_it_matters:
       direction: "Opportunity" or "Risk" for {company}, on balance.
       channel: how it would reach the business; exactly one of: {channels}.
-      size: ONLY a figure that is stated word for word either in the story text
-        or in the {company} profile above, copied EXACTLY as written (for
-        example "$3.5 billion" or "900 MW"). If it comes from the story text,
-        put a quote containing that figure in size_quote (4 to 24 words, copied
-        exactly, same rules as quote). If it comes from the profile, leave
-        size_quote empty. If no such figure exists, write exactly: unsized.
+      size: ONLY a figure that this story's own text states about the
+        development, copied EXACTLY as written (for example "$3.5 billion" or
+        "900 MW"), together with a size_quote: a quote from the story text that
+        contains that figure (4 to 24 words, copied exactly, same rules as
+        quote). NEVER take a figure from the {company} profile as the Size, even
+        if it is relevant: the profile shows {company}'s exposure (put that in
+        why_it_matters), not how big this story is. If the story states no
+        figure, write exactly: unsized, and leave size_quote empty.
         NEVER estimate, round, convert, add up, or infer a number, and never
         turn a vague amount ("billions", "large") into a figure. Code checks
-        this, and any figure it cannot find becomes "unsized".
+        this, and any figure it cannot find in the story's own quote becomes
+        "unsized".
       consider: one specific option or question for {company} that exists
         BECAUSE of this story: a named counterparty, site, contract, financing,
         or product from the story or the profile. No generic advice ("monitor
@@ -250,7 +254,7 @@ def title_lines(company: str, day: str) -> list[str]:
 def impact_lines(item: dict) -> list[str]:
     """The structured business-impact block that follows "Why it matters"."""
     size = item.get("size") or UNSIZED
-    basis = {"source": " (stated in the source)", "profile": " (from the company profile)"}
+    basis = {"source": " (stated in the source)"}
     return ["- **Business impact:**",
             f"  - **Direction:** {item.get('direction', '')}",
             f"  - **Channel:** {item.get('channel', '')}",

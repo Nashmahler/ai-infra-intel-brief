@@ -4,7 +4,10 @@ from pathlib import Path
 
 import pytest
 
+import json
+
 import src.config as config
+import src.decode as decode
 import src.fetch as fetch
 import src.fulltext as fulltext
 import src.rank as rank
@@ -68,7 +71,7 @@ def future_day(tmp_path, monkeypatch):
     monkeypatch.delenv("TARGET_PROFILE", raising=False)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-real")
     monkeypatch.setattr("sys.argv", ["step"])
-    for module in (fulltext, rank, verify, weekly, write):
+    for module in (decode, fulltext, rank, verify, weekly, write):
         monkeypatch.setattr(module, "today", lambda: "2099-01-01")
     return tmp_path
 
@@ -83,6 +86,11 @@ def test_every_step_picks_its_default_day_through_the_same_helper(future_day, ca
     for step in (rank, write):
         with pytest.raises(FileNotFoundError, match="2099-01-01_raw.json"):
             step.main()
+    data = config.data_dir()                                   # decode: files for the default day exist
+    (data / "2099-01-01_raw.json").write_text(json.dumps({"items": []}))
+    (data / "2099-01-01_scores.json").write_text(json.dumps({"items": []}))
+    decode.main()
+    assert (data / "2099-01-01_decode.json").exists()
 
 
 def test_no_step_computes_the_day_from_utc_itself():

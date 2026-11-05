@@ -1,5 +1,6 @@
 # Daily brief, 6:00 a.m. Mountain time.
-# fetch -> rank -> full text -> write -> verify -> (Fridays) weekly themes -> index,
+# fetch -> rank -> decode Google links (top 60) -> full text -> write -> verify ->
+# (Fridays) weekly themes -> index,
 # then commit briefs/<profile>/YYYY-MM-DD.md, the briefs index, and the README's
 # "Latest brief" link to the repo.
 # Runs on the schedule and from the "Run workflow" button (manual).
@@ -72,6 +73,12 @@ jobs:
       - name: Rank
         if: steps.gate.outputs.go == 'true'
         run: python -m src.rank
+      - name: Decode Google News links for the top 60 ranked stories
+        # Unofficial decoder that talks to Google: never blocks the brief. If it fails,
+        # stories keep their Google link (and a warning appears on the run page).
+        if: steps.gate.outputs.go == 'true'
+        continue-on-error: true
+        run: python -m src.decode
       - name: Fetch full text of the top articles
         if: steps.gate.outputs.go == 'true'
         run: python -m src.fulltext

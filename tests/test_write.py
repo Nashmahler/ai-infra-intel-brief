@@ -156,3 +156,18 @@ def test_draft_rendering_shows_the_impact_block_without_a_basis_note():
     item = {"direction": "Risk", "channel": "Costs & margins", "size": "$1 billion", "consider": "Ask X."}
     assert impact_lines(item)[3] == "  - **Size:** $1 billion"              # not verified yet: no 'stated in' claim
     assert impact_lines({**item, "size": "unsized"})[3] == "  - **Size:** unsized"
+
+
+def test_writer_prompt_keeps_profile_figures_out_of_size_but_allows_them_as_exposure():
+    from src.write import build_system_prompt
+    p = " ".join(build_system_prompt().split())
+    assert "NEVER take a figure from the Crusoe profile as the Size" in p
+    assert "may appear in why_it_matters as Crusoe's exposure, but NEVER in Size" in p
+    assert "or in the Crusoe profile above" not in p                       # the old permission is gone
+
+
+def test_a_legacy_profile_basis_is_not_rendered_as_a_claim():
+    from src.write import impact_lines
+    item = {"direction": "Risk", "channel": "Costs & margins", "size": "1.2 GW",
+            "size_basis": "profile", "consider": "Ask X."}
+    assert impact_lines(item)[3] == "  - **Size:** 1.2 GW"                  # no "(from the company profile)"
