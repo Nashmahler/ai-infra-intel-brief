@@ -1,0 +1,56 @@
+# Builds evals/labeled_headlines.yaml (SPEC.md section 6) from today's data.
+# Fetches and ranks today's news on a runner (the only place with network access
+# to the feeds and the API key), then picks 20 headlines stratified by what the
+# ranker thought, WITHOUT writing the scores, and commits the unlabeled file.
+# It refuses to overwrite a file that already has labels (delete the file first to
+# rebuild the sample, and expect to relabel it).
+name: Eval sample
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit the sample to the branch (untick to just see it in the log)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: eval-sample
+  cancel-in-progress: false
+
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TARGET_PROFILE: ${{ vars.TARGET_PROFILE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install -r requirements.txt
+      - name: Fetch today's items
+        run: python -m src.fetch
+      - name: Rank them
+        run: python -m src.rank
+      - name: Pick the 20 headlines
+        run: python -m src.evalset
+      - name: Commit the unlabeled sample
+        if: inputs.commit == true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evals/labeled_headlines.yaml
+          if git diff --cached --quiet; then
+            echo "No change to commit."
+          else
+            git commit -m "Eval sample for $(TZ=America/Denver date +%F) (unlabeled)"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi

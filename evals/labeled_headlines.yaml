@@ -1,0 +1,173 @@
+# Hand-labeled headlines for checking the ranker (SPEC.md section 6, "Eval set").
+#
+# Fill in `label:` for every headline with exactly one of:
+#   signal  = something Crusoe's strategy team would want to know
+#   noise   = not worth their attention
+#
+# Judge the headline (and summary) as a person, not what a ranking model would say:
+# the point of this file is to measure how often the ranker agrees with you.
+# The order is shuffled and no ranker scores are stored here, on purpose.
+#
+# Check the ranker against these labels with:   python -m src.evaluate
+
+profile: crusoe
+headlines:
+  - id: 1
+    headline: "Chinese AI Firms May Receive 1% of 6 Million Nvidia GPUs in Four Months"
+    source: "www.tokenpost.com"
+    published: "2026-11-04T21:15:13+00:00"
+    link: "https://news.google.com/rss/articles/CBMiW0FVX3lxTFBXZFJDZ0JpTk5vZXBHYU5Gc3puaG5sX2w3SV8zOU05bmR3Q0hBRlEtamJ6eExhU0s3VGRXMTBCbmZUTzVNRnJHVndnTDJXMk9sRVllV29aejBOVG8?oc=5"
+    summary: "Chinese AI Firms May Receive 1% of 6 Million Nvidia GPUs in Four Months &nbsp;&nbsp; www.tokenpost.com"
+    label: signal
+
+  - id: 2
+    headline: "NVIDIA RTX 5080 Sees Over 220X FPS Boost With New DirectX Raytracing Technology, Outpaces RX 9070 XT By 3.4X"
+    source: "Wccftech"
+    published: "2026-11-05T12:08:53+00:00"
+    link: "https://news.google.com/rss/articles/CBMiyAFBVV95cUxONTVHYjloRTcxNjZVbGMxOWhYUk1MUEFkeDFxbkVvbE5LNzRNcHFuX2NQOGVCbEhPVU9rX3Z6NWc1QThIMHhYeFdGdXRkb09PMVRWYmYtZnZDQnNSMkRNVVBMWU1rQk9oSnU4bzlETjdLSkc4VnFqUnlzRUFDajdBeV9Md21OLTVjQjFYQXFDZnZ5SjItS0Rodm1FaU5fV291R2dObngxZThxY1JPRjlxSzhQYXRpV2dCcW1odjBpTlE1TE5ZbXNoZNIBzgFBVV95cUxNbzhEWWVIYmRKVEpLMjBGOGhqcTRQemRGd3FUX1lqMkJmTzRIX0hJUm5UZzlUdXNZWE9XNk93NDZLakpydUpLaEoyZHlWRHlvR1h6WnBjNThRb1ludjdJMFNYdm5aOWVQQW54azBQdW45TWthdko3cTB6aFhkMEx5ekdxNGZndElub3NHYVlmS3dPTlY0MDJETGdCY08tdWlXV0loZndBbnFjV1ExSlRiU1AtTmNqUmk3bjJ5cnFDbm5vUFJtbzAzaDR6N0Zjdw?oc=5"
+    summary: "NVIDIA RTX 5080 Sees Over 220X FPS Boost With New DirectX Raytracing Technology, Outpaces RX 9070 XT By 3.4X &nbsp;&nbsp; Wccftech"
+    label: noise
+
+  - id: 3
+    headline: "Texas governor-elect Gina Hinojosa promises continued data center moratorium, further legislation"
+    source: "Data Center Dynamics"
+    published: "2026-11-05T10:52:00+00:00"
+    link: "https://www.datacenterdynamics.com/en/news/texas-governor-elect-gina-hinojosa-promises-continued-data-center-moratorium-further-legislation/"
+    summary: "Outlines 'Texans First Data Center Priorities'"
+    label: signal
+
+  - id: 4
+    headline: "CoreWeave Bonds Hit New Lows as Texas Data Centers in Crosshairs"
+    source: "Bloomberg.com"
+    published: "2026-11-04T21:07:02+00:00"
+    link: "https://news.google.com/rss/articles/CBMitgFBVV95cUxQVlEyOVh1N1ZONVgyWXFubUw5djZvMmxxTGVSMVE5MHJxY2x3aU81UTZLSklRYVptNVdrWVo1aUJqMUtzM0YtLXl1cjJUSUJvdGFVQ0hoWTE2dXBsT3JoT1dYYUhLUm9kSlEyUDBNRmlsV1NvSzhUNHdLV21jRVdJRFotS2lVOUJFWFhDcl91QXJzeDlITlhHb1RuZjVZMGw4dVdSSF8tYWJFeEF2bGZUZElUeXZUZw?oc=5"
+    summary: "CoreWeave Bonds Hit New Lows as Texas Data Centers in Crosshairs &nbsp;&nbsp; Bloomberg.com CoreWeave and Oracle Face a New Threat From Texas &nbsp;&nbsp; Yahoo Finance The blue wave is hammering data-center stocks on the prospect of more scrutiny &nbsp;&nbsp; Business Insider"
+    label: signal
+
+  - id: 5
+    headline: "Nvidia is Far From The Only Threat to AMD"
+    source: "24/7 Wall St."
+    published: "2026-11-04T17:45:00+00:00"
+    link: "https://news.google.com/rss/articles/CBMijgFBVV95cUxNN1FxM0l4UUdTZ1RTZzJHRU5lTHU1S3hlZkkzamt6aXFYdmI1a2NTWHJkbmtXM3FXTGplR28xVXY3WVNheF9mdmhUc2NIQmN5dG9lTmtOOE83RVN4Wk9GOVdJbDJoMG5KcjIxaUl2ejk4MkhfSzVyVlJtRld6Szh6YTVYb0JLdDFQWnNVTEFB?oc=5"
+    summary: "Nvidia is Far From The Only Threat to AMD &nbsp;&nbsp; 24/7 Wall St."
+    label: noise
+
+  - id: 6
+    headline: "War Thunder: GeForce RTX 50 Series GPU Benchmarks with DLSS 5"
+    source: "GameGPU"
+    published: "2026-11-04T19:01:29+00:00"
+    link: "https://news.google.com/rss/articles/CBMipgFBVV95cUxPN2V4RXJoemh1Q0RZQlY0LTdGOHNsbVM3SmthWVh6Uk1PQU1hSDB2elFCd1k3M084eEMwOGsyMThPdUFGZEhRUUFOQTFKRXYzdElJMGhud2hkMEhISnlid1FvTXFyWlc0cVQweUZyMVM4Q0lub21oeWlGZEtjNFdDcDlqMW42VEdvXzJCR2YyQWxua3QzOXZIVGk1UERrVW40Mi01M0xR?oc=5"
+    summary: "War Thunder: GeForce RTX 50 Series GPU Benchmarks with DLSS 5 &nbsp;&nbsp; GameGPU"
+    label: noise
+
+  - id: 7
+    headline: "Bernie Sanders Pushes Data Center Moratorium Over 'Big Tech Oligarchs' - CoreWeave (NASDAQ:CRWV)"
+    source: "Benzinga"
+    published: "2026-11-05T03:15:57+00:00"
+    link: "https://news.google.com/rss/articles/CBMiugFBVV95cUxQVTIwTTQtbGlIeHNuUzdGQUN2aTdyU2VGUzVYWW9hUlg3UXVwQk9yMUw2bzB1N25zemd5aXpCZWZGX01KdUVpVVVRQUd2QnNUd0VDdV9Mb180aTdGSlp3Sld1dUNJcklLNUUzQzhuR1FVZm9naVJkWDNjWUhxNDFrQk0tR3hwNk11QU5Yd19tbUpSUzR1Q25KYmM4RV9MRDg3SUdKMTVCbzdsUDhWUmlSakhyU1N5bTRfbnc?oc=5"
+    summary: "Bernie Sanders Pushes Data Center Moratorium Over 'Big Tech Oligarchs' - CoreWeave (NASDAQ:CRWV) &nbsp;&nbsp; Benzinga"
+    label: signal
+
+  - id: 8
+    headline: "AI Data Centers Are Fueling a Nuclear Comeback"
+    source: "Data Center Knowledge"
+    published: "2026-11-05T10:01:58+00:00"
+    link: "https://news.google.com/rss/articles/CBMipAFBVV95cUxONTZaTXVIX1VfMWNVTU40VWl5dWdZcldPczFSOUpQbXEtWnNRZ3JSLWRWVmRFUEJkd2JabWpEME1rZmQzUm1GbEhhMGJiUVl1OVFZRUxZVm1BaFhYNXNOby1QVmpwNU5rMXd5Vld0dTU4dEo5UGRzLXBRMFFtSV84QTJTOFFvazdTQm1qNkpTVDB0THJmX1Y5Q2oxc2JwX3hSMGlESw?oc=5"
+    summary: "AI Data Centers Are Fueling a Nuclear Comeback &nbsp;&nbsp; Data Center Knowledge"
+    label: noise
+
+  - id: 9
+    headline: "Enphase Energy (ENPH) Reaches 800 VDC AI Data Center Power Milestone"
+    source: "Yahoo Finance UK"
+    published: "2026-11-04T18:10:07+00:00"
+    link: "https://news.google.com/rss/articles/CBMihwFBVV95cUxQUVB3T2tWQUNHel8wb28tUlRmUWZsUWFzVXgzbWpEVWZEbHhEOFR0alFRVlpuZEg1LTlYZ3E4TlBoRUNOenhFTnB0UlFaOWpldkc0aE9RcF9aMjZzVzNRemxVVmJ2UFJGZjkwZzZqaTJHNWJKRExOYjJPYnN1c2xfcFhTQ1g0SVk?oc=5"
+    summary: "Enphase Energy (ENPH) Reaches 800 VDC AI Data Center Power Milestone &nbsp;&nbsp; Yahoo Finance UK"
+    label: noise
+
+  - id: 10
+    headline: "LayerZero extends Stargate token conversion to 2026 ahead of Zero mainnet launch"
+    source: "Pluang"
+    published: "2026-11-04T21:18:49+00:00"
+    link: "https://news.google.com/rss/articles/CBMikgFBVV95cUxQMEpXTVFTaHJra0tQTmp0eFkyalVCMWVuWk9CNWZpcnlmanRqXzRiVGZVSjNhQkFGYXZmUlJmc3pmelB1QkttckxEYUNPTjBfb1JXWlpaX1dObGtFNGdTdW54ZkxDamtJUjkzeGpYcllIRXRmaVhteENwMzN2a0t3cnRTXzA3eUZQNl82MTdZeVhwZw?oc=5"
+    summary: "LayerZero extends Stargate token conversion to 2026 ahead of Zero mainnet launch &nbsp;&nbsp; Pluang"
+    label: noise
+
+  - id: 11
+    headline: "41 Data Center Ballot Measures [2026]: What AI Teams Face"
+    source: "https://tech-insider.org/"
+    published: "2026-11-05T01:35:04+00:00"
+    link: "https://news.google.com/rss/articles/CBMilAFBVV95cUxPTzFXWHZmWk56dnloYllUOXNZejM0a3MtOU1ySWltX0JIalFpVWtxRjZoNmRfQ1RNNWVLMWpFRXNDMzhHTktBNDJta1hYZHRndWNfdTdDck1vTXR2WVdRcXNPYXBibXdqbDVfSXdWdDJqYl9UOC13empVRE5NV0VtSi1HaWlzRFY4eWtjUU0yMDNFUkh4?oc=5"
+    summary: "41 Data Center Ballot Measures [2026]: What AI Teams Face &nbsp;&nbsp; https://tech-insider.org/"
+    label: signal
+
+  - id: 12
+    headline: "Hermiston, Umatilla push back against data center moratorium"
+    source: "East Oregonian"
+    published: "2026-11-04T20:23:27+00:00"
+    link: "https://news.google.com/rss/articles/CBMingFBVV95cUxQZF9EdzBaZUMtNUZPMndQZEJ2WkNqVXA0dEJEMGxoR3ZscjE2cXpYd1NUTFlhN3l2c1VkalIwVTB4X05kNVdaa093YVJFaDZXZVZpQlE5aGtDTC1iZXNnSzc1dTZaSXhsMTdTcUNfazFBVldubFQxNVZBNFFlSGxYM1V3ZHRnY1pLeEprMTRwSFN4c25UX0ZJQWVHTFhDdw?oc=5"
+    summary: "Hermiston, Umatilla push back against data center moratorium &nbsp;&nbsp; East Oregonian"
+    label: noise
+
+  - id: 13
+    headline: "Citi Cut Its CoreWeave Target to $128. It Still Sees 164% Upside"
+    source: "TIKR.com"
+    published: "2026-11-05T10:52:30+00:00"
+    link: "https://news.google.com/rss/articles/CBMikgFBVV95cUxQZ3lmOXFjaVF3ZEoyLVFVMHVfUjNHWWlCX1BJRk9TckZCMEVmaGprbVRwSU91alRQTnNGeTB2YUx3X3FaRXY1ZG9fbWd4OUhkNDFEX3daV0YxcU9xQnZGalc2eFA5VU5xa0xhWWJSTUFoRHFLY3RucnE2Rm5oSVpud3I2VHJUTkN1ZFhCekJZejNJUQ?oc=5"
+    summary: "Citi Cut Its CoreWeave Target to $128. It Still Sees 164% Upside &nbsp;&nbsp; TIKR.com"
+    label: noise
+
+  - id: 14
+    headline: "Two Secrecy Agreements Shadow OpenAI’s $15 Billion Wisconsin Data Center"
+    source: "the deep dive"
+    published: "2026-11-05T10:56:06+00:00"
+    link: "https://news.google.com/rss/articles/CBMimgFBVV95cUxQbUZOd0dpdkNYOUwzN2JRZ2RvOUJsLVBmdzlwZ3RsallmT05UUnFzSTdYaUM3NFNjMENrX3o4VDZoN0hZRnM3VEN2UXc3NkQwdUh6QWEzM0prSGRKbWx3WnQ2cHFQZkxlV21aR0ZwMUttMndwcFQtSUl6UGtMNm83ZG5SOGRheUpYR0Jzd1BDQVV2WWVNQklGazFB?oc=5"
+    summary: "Two Secrecy Agreements Shadow OpenAI’s $15 Billion Wisconsin Data Center &nbsp;&nbsp; the deep dive"
+    label: signal
+
+  - id: 15
+    headline: "OpenAI promises to drop NDAs and increase community transparency, following anti-data center wave"
+    source: "Data Center Dynamics"
+    published: "2026-11-05T13:03:45+00:00"
+    link: "https://www.datacenterdynamics.com/en/news/openai-promises-to-drop-ndas-and-increase-community-transparency-following-anti-data-center-wave/"
+    summary: "Publishes Compute Campus Policy and National Community Compact"
+    label: signal
+
+  - id: 16
+    headline: "NVIDIA CUDA 13.5 Brings NVIDIA Vera Rubin GA Support | NVIDIA Technical Blog"
+    source: "NVIDIA Developer"
+    published: "2026-11-04T18:48:59+00:00"
+    link: "https://news.google.com/rss/articles/CBMikAFBVV95cUxOeUUxbmFrLTVDMVJuZjBVcVBnNVhIS05RVVFhaEEyc1BmckFfWWk2cm9zYXFUckJKczBZWHBMTDVNRFFMQW1tVzBsMmswcDB6d3JTakxBYkkwOXkyQkswdmJCSkpvTmpGWDZtQVplaFg0ZVBGQUtaZVpmQl9veW4yUDZyQXE1Z3lEQ3RjYlUxR0g?oc=5"
+    summary: "NVIDIA CUDA 13.5 Brings NVIDIA Vera Rubin GA Support | NVIDIA Technical Blog &nbsp;&nbsp; NVIDIA Developer"
+    label: noise
+
+  - id: 17
+    headline: "OpenAI could face Democratic investigation over Trump's $500 billion Stargate project after midterm results"
+    source: "UNILAD Tech"
+    published: "2026-11-05T10:16:05+00:00"
+    link: "https://news.google.com/rss/articles/CBMitwFBVV95cUxPZ0JNM2JFQ05qaVc3eVhkR181MjU3Y3ZOWWEzY0NCOC1YZjZMbjlrWVdEVXpiZkxYSF9BOXA0WWZyeTZhcnNsSjdNQi1vTG5xS04xcWRVYl9GVmRHcC1SWC1FZVBmZHNJcU1JNmdwOXZBLTM1TjRSRzJaXzUxeHBCYlZfZjRrR3IwbmZ1UFhBaVRtd3NCcnJ5VnA3eDBMaE1tclktWi1UVWVzcEhRS09MdTdMZ1lKX00?oc=5"
+    summary: "OpenAI could face Democratic investigation over Trump's $500 billion Stargate project after midterm results &nbsp;&nbsp; UNILAD Tech"
+    label: noise
+
+  - id: 18
+    headline: "Robinson Crusoe scraps plan for Friday to wait 15 years to be allowed into the compound"
+    source: "NewsBiscuit"
+    published: "2026-11-05T13:00:57+00:00"
+    link: "https://news.google.com/rss/articles/CBMivAFBVV95cUxQeUNybTdVUFV6QlozOUdWdm5QQzlOWVpDMFlJZDJGcDg1UTN3VWJjTUpHNzBTVTFsRXJ1YVVmbXp6Q0d2RVB3OHBnVFBEa1c4dkVWR2s1X1J5Q0pqUzBnMEhCNFFBQ2RjNjU0X2RsSGg5OEQ2R3lzTmxoSFVPUUpJUEtRd2JSNmtfeDdCd1pRdTE4aTRZY2hWV0VtT1ZxWmlzbjZibnRIZUFfTmJ3SEFaTU1TRnAtLWJQT1p6Zw?oc=5"
+    summary: "Robinson Crusoe scraps plan for Friday to wait 15 years to be allowed into the compound &nbsp;&nbsp; NewsBiscuit"
+    label: noise
+
+  - id: 19
+    headline: "Modular AI Data Centers Gain Ground as Crusoe Debuts Unit"
+    source: "Data Center Knowledge"
+    published: "2026-11-04T19:54:35+00:00"
+    link: "https://news.google.com/rss/articles/CBMitAFBVV95cUxNS25SRTEweThScWNmcFFZQ0ktX0QtdHZ3enBuNWp5SkN3OWRCYWszQXZYVkZGV2hpbU00dVBEVExSUU9LSU42M0ZsbzFtYVNhZ1lacnpaQ1RwVUR4RV9mWTNRc1BVVnAzOW9zLXVOU3pqSlFiRm1vcHRjMzZ0SGxZZ3d6UTZIUThtc2tRZ20wRGw2dTg4SHZIb0xvTExkQlFfUUpFc0xucllHRmphNWJlN1gxTXo?oc=5"
+    summary: "Modular AI Data Centers Gain Ground as Crusoe Debuts Unit &nbsp;&nbsp; Data Center Knowledge"
+    label: signal
+
+  - id: 20
+    headline: "CoreWeave, Inc. (CRWV) Stock Forecasts"
+    source: "Yahoo! Finance Canada"
+    published: "2026-11-04T22:55:46+00:00"
+    link: "https://news.google.com/rss/articles/CBMikAFBVV95cUxObXNoV2kyeVZBclpWenI3ZnNsZ3Judm5TdnljdUc1RVZQWmwyQ2VkYUdxNU1TbnF3M0drMFVtX3dWX1p2V1FjQWNYWDlKVnFrZ3dlTTB1OXJRU0JhY0xqbDR2cXo0WUtIVnc5c3A1c0kzX0t4V0tuWlN6ZDBZRTcxN25BdTMxWmhXQ0NkSGlHSWs?oc=5"
+    summary: "CoreWeave, Inc. (CRWV) Stock Forecasts &nbsp;&nbsp; Yahoo! Finance Canada"
+    label: noise

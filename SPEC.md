@@ -102,7 +102,7 @@ A single Python script that runs once a day on GitHub Actions:
 - **Weekly check (code):** every theme must cite at least two daily briefs that exist, and its quote must appear in one of them; every opportunity must cite one daily brief that exists, quote it, and contain no figure the brief lacks. Failing items are dropped.
 - **Claim check (prompt rule):** the writing prompt may only use facts present in the supplied article text, and must label anything uncertain as Reported.
 - **Unit tests (pytest):** use saved sample feeds as test data; confirm deduplication, filtering, and the source check behave correctly, including when a feed is down or empty, and when the brief contains a deliberately fake link or a fabricated quote.
-- **Eval set:** 20 real headlines labeled by hand as signal or noise for the target company (`evals/labeled_headlines.yaml`). Run the ranking step against them and record how often it agrees. Re-run after every prompt change.
+- **Eval set:** 20 real headlines labeled by hand as signal or noise for the target company (`evals/labeled_headlines.yaml`). Run the ranking step against them (`python -m src.evaluate`, score 3 or more counts as signal) and record how often it agrees, plus false positives and false negatives (first result in `evals/results.md`). Re-run after every prompt change.
 - **Fail closed:** if collection fails or the source and quote checks leave no top development, write a short "no verified brief today" file instead of a brief with unsupported claims.
 
 ## 7. Build steps (one at a time; test each before moving on)
@@ -112,7 +112,7 @@ A single Python script that runs once a day on GitHub Actions:
 3. Write the ranking step using the Claude API with a scoring prompt (relevance to the target company, novelty, source quality, 1–5 with a reason). Save scores to JSON.
 4. Write the brief-writing step using the exact format in this spec. Facts may only come from the supplied articles.
 5. Write the source-verification check in code: remove any brief item whose link isn't in the collected set, and log removals. Add tests, including a deliberately fake link.
-6. Add an eval script that runs the ranking step against `evals/labeled_headlines.yaml` and reports agreement. (Nash writes the 20 labels.)
+6. Add an eval script that runs the ranking step against `evals/labeled_headlines.yaml` and reports agreement. (Nash writes the 20 labels.) *Done: the sample is built by `src.evalset`, the script is `src.evaluate`.*
 7. Add a GitHub Actions workflow that runs daily from 6:00 a.m. Mountain time (any scheduled start from 6:00 to 11:59 a.m. Denver counts, as long as today's brief is not already on main, because GitHub can start scheduled runs late), can also be run manually, and commits the brief to `briefs/<profile>/YYYY-MM-DD.md`.
 8. Write a README: what it does, how it works, how verification works, known limitations.
 

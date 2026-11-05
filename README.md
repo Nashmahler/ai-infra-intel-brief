@@ -224,6 +224,7 @@ python -m src.check_feeds    # check every feed URL returns items
 python -m src.fetch && python -m src.rank && python -m src.fulltext && python -m src.write && python -m src.verify
 python -m src.weekly --force   # optional: add this week's themes now (otherwise Fridays only)
 python -m src.index            # refresh the briefs index and the Latest brief link
+python -m src.evaluate         # check the ranker against the hand labels (needs the API key)
 ```
 
 On GitHub: **Actions → Daily brief → Run workflow** for a manual run (tick
@@ -246,6 +247,35 @@ by a later trigger, and if GitHub starts no scheduled run before noon Denver the
 The **Check feeds** workflow tests
 all feed URLs from GitHub's runners; the check passes if at least half work and
 prints which ones don't.
+
+## The eval set
+
+How well does the ranker's "this matters" judgment match a person's? The answer
+lives in [`evals/labeled_headlines.yaml`](evals/labeled_headlines.yaml): **20 real
+headlines**, each with its source, summary and link, labeled by hand as
+**signal** (something the target company's strategy team would want to know) or
+**noise** (not worth their attention). It was sampled from one day's ranked data,
+about a third each from what the ranker scored 4-5, 2-3 and 1, then shuffled, with
+**no scores stored in the file** so the labeler couldn't be nudged.
+
+`python -m src.evaluate` (or **Actions → Ranker eval → Run workflow**, a few cents)
+runs the real ranking step on exactly those headlines, treats **a score of 3 or more
+as signal**, and reports:
+
+- **agreement:** how often the ranker and the person said the same thing
+- **false positives:** the ranker said signal, the person said noise (noise gets into the brief)
+- **false negatives:** the ranker said noise, the person said signal (a story is missed)
+- precision and recall, plus every headline with its score and the ranker's reason
+
+**Re-run it after every change to the ranking prompt**, and compare with the last
+result. The first run: **14/20 (70%) agreement, 3 false positives, 3 false
+negatives**. The ranker was right on everything it scored 4-5 or 1, and all the
+disagreements were in the middle; it also tended to mark down good stories from
+low-tier outlets. Details and caveats: [`evals/results.md`](evals/results.md).
+
+The sample was built by the **Eval sample** workflow (`python -m src.evalset`), which
+refuses to overwrite a file that already has labels; to rebuild it, delete the file
+first and expect to relabel.
 
 ## Tests
 
@@ -352,10 +382,10 @@ saved samples under `tests/samples/`. They cover:
 - **Undated items are skipped** (if a feed doesn't say when something was
   published, we can't show it is recent), and at most 100 items per day are
   ranked (the newest).
-- **No eval set yet.** SPEC.md calls for 20 hand-labeled headlines
-  (`evals/labeled_headlines.yaml`) and a script that measures how often the
-  ranker agrees. That is not built in v1; ranking quality has been judged by
-  eye.
+- **The eval set is small.** 20 headlines labeled by one person, and the ranker
+  is not deterministic, so a change of one or two in the agreement number is noise
+  (see [the eval set](#the-eval-set)). The eval also ranks its 20 headlines as one
+  batch, unlike the ~100-item daily batch.
 
 ## What's next
 
@@ -363,7 +393,7 @@ saved samples under `tests/samples/`. They cover:
   v1. The SEC rejects requests without a descriptive User-Agent that includes
   contact info, so adding them means setting a `SEC_USER_AGENT` secret (e.g.
   `ai-infra-intel-brief you@example.com`) and sending it with those requests.
-- **The eval set** described above, re-run after every prompt change.
+- Grow the eval set (more headlines, a second labeler, repeated runs to average out the ranker's run-to-run variation).
 - More profiles, and a workflow matrix so several companies run side by side
   each morning.
 - Primary-source monitoring beyond filings: regulator dockets and interconnection queues.
