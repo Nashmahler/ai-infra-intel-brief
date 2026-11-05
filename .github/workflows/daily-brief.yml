@@ -16,9 +16,13 @@ on:
   workflow_dispatch:
     inputs:
       weekly:
-        description: "Also add this week's themes (normally only on Fridays)"
+        description: "Also add this week's themes and opportunities (normally only on Fridays)"
         type: boolean
         default: false
+      commit:
+        description: "Commit the brief to the repo (untick for a test run that leaves nothing behind)"
+        type: boolean
+        default: true
   push:
     # Early testing: run when this file changes (cents per run, not per push).
     branches: [v1-build]
@@ -88,10 +92,20 @@ jobs:
         if: steps.gate.outputs.go == 'true' && always()
         continue-on-error: true
         run: python -m src.index
+      - name: Show the brief in the log and the run summary
+        if: steps.gate.outputs.go == 'true' && always()
+        continue-on-error: true
+        run: |
+          f="briefs/${TARGET_PROFILE:-crusoe}/$(TZ=America/Denver date +%F).md"
+          if [ -f "$f" ]; then
+            echo "::group::$f"; cat "$f"; echo "::endgroup::"
+            cat "$f" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Commit brief to briefs/
-        # Scheduled and manual runs only. Commits made with the built-in token
-        # do not trigger other workflows, so there is no loop.
-        if: steps.gate.outputs.go == 'true' && github.event_name != 'push' && always()
+        # Scheduled runs always commit; manual runs commit unless "commit" is unticked.
+        # Pushes (test runs of this file) never do. Commits made with the built-in
+        # token do not trigger other workflows, so there is no loop.
+        if: steps.gate.outputs.go == 'true' && (github.event_name == 'schedule' || inputs.commit == true) && always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
