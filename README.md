@@ -1,5 +1,9 @@
 # AI Infrastructure Intelligence Brief
 
+<!-- latest-brief:start -->
+**Latest brief — Crusoe:** [November 5, 2026](briefs/crusoe/2026-11-05.md) · [all briefs](briefs/crusoe/README.md) <!--profile:crusoe-->
+<!-- latest-brief:end -->
+
 A daily, source-verified intelligence brief on AI infrastructure markets (AI
 compute and cloud, power and energy, data center construction, and chips and
 hardware), **prepared for a target company you choose**. The target is a
