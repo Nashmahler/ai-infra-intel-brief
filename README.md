@@ -1,7 +1,7 @@
 # AI Infrastructure Intelligence Brief
 
 <!-- latest-brief:start -->
-**Latest brief — Crusoe:** [November 5, 2026](briefs/crusoe/2026-11-05.md) · [all briefs](briefs/crusoe/README.md) <!--profile:crusoe-->
+**Latest brief — Crusoe:** [November 6, 2026](briefs/crusoe/2026-11-06.md) · [all briefs](briefs/crusoe/README.md) <!--profile:crusoe-->
 <!-- latest-brief:end -->
 
 A daily brief on AI infrastructure for any target company in which every top-story claim is checked in code against the article it came from before it is published.
