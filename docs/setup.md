@@ -49,6 +49,14 @@ The **Check feeds** workflow tests
 all feed URLs from GitHub's runners; the check passes if at least half work and
 prints which ones don't.
 
+## Pausing and resuming
+
+The daily workflow is the only thing that spends API credit (rank and write, plus weekly synthesis on Fridays). Runs skipped by the gate make no API calls.
+
+- **Pause:** GitHub, Actions, "Daily brief", the "..." menu, **Disable workflow**. Manual runs are also blocked while it is disabled.
+- **Resume:** the same menu, **Enable workflow**. Check that the `ANTHROPIC_API_KEY` secret is set and the Anthropic account has credit, then use "Run workflow" for an immediate brief, or wait for the next scheduled run.
+- Nothing in the repository needs to change to pause or resume.
+
 ## Adding a new company
 
 1. **Copy the template:** `cp profiles/_template.yaml profiles/acme.yaml`. The
